@@ -13,6 +13,10 @@ String recipientEmail = 'your-email@example.com'; // TODO: Update this email add
 Integer batchSize = 200; // Number of records to process per batch
 
 // Schedule Type: DAILY, HOURLY, or INTERVAL
+// Note: Lookback hours are automatically set to match your schedule:
+//   - DAILY: 24 hours
+//   - HOURLY: 1 hour
+//   - INTERVAL: matches your interval (e.g., every 4 hours = 4-hour lookback)
 AgentErrorMonitorScheduler.ScheduleType scheduleType = AgentErrorMonitorScheduler.ScheduleType.DAILY;
 
 // For DAILY: Hour of day to run (0-23)
@@ -29,25 +33,21 @@ Integer intervalHours = 4;
 AgentErrorMonitorScheduler.unscheduleAll();
 System.debug('Unscheduled all existing Agent Error Monitor jobs');
 
-// Schedule using unified method
-String jobId = AgentErrorMonitorScheduler.schedule(
-  recipientEmail,
-  scheduleType,
-  dailyHour,
-  intervalHours,
-  batchSize
-);
-
-// Build description for display
+// Schedule based on type
+String jobId;
 String scheduleDescription;
+
 switch on scheduleType {
   when DAILY {
+    jobId = AgentErrorMonitorScheduler.scheduleDaily(recipientEmail, dailyHour, batchSize);
     scheduleDescription = 'Daily at ' + dailyHour + ':00';
   }
   when HOURLY {
+    jobId = AgentErrorMonitorScheduler.scheduleHourly(recipientEmail, batchSize);
     scheduleDescription = 'Every hour';
   }
   when INTERVAL {
+    jobId = AgentErrorMonitorScheduler.scheduleEveryNHours(recipientEmail, intervalHours, batchSize);
     scheduleDescription = 'Every ' + intervalHours + ' hours';
   }
 }

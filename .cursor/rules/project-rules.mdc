@@ -1,0 +1,248 @@
+---
+alwaysApply: true
+---
+
+# Salesforce Apex Development Rules
+
+## Core Principles
+
+**DRY, SOLID, Separation of Concerns** - Always apply these architectural patterns.
+
+---
+
+## Critical Rules (NEVER Violate)
+
+### Code Quality
+- ❌ NO unused variables, methods, or imports
+- ❌ NO dead code
+- ✅ Fix errors before warnings
+- ✅ Run verification after ALL changes
+- ✅ Maintain 75%+ test coverage
+
+### Error Handling
+- ✅ Use try-catch blocks
+- ✅ Log exceptions with context
+- ❌ NEVER silently catch exceptions
+- ✅ Provide clear, actionable error messages
+
+### Testing
+- ✅ Test actual behavior, not just coverage
+- ❌ NO trivial tests (constructors, getters, no assertions)
+- ❌ NO duplicate tests
+- ✅ Use descriptive test names
+- ✅ Test edge cases and bulk data (200+ records)
+
+### Security
+- ✅ Escape HTML/JavaScript output (XSS prevention)
+- ✅ Validate all user inputs
+- ✅ Use bind variables in SOQL
+- ❌ NEVER expose sensitive data in logs
+
+---
+
+## Apex Best Practices
+
+### Naming
+- Classes: `PascalCase`
+- Methods/Variables: `camelCase`
+- Constants: `UPPER_SNAKE_CASE`
+- Test Classes: `ClassNameTest`
+
+### Bulkification (CRITICAL)
+- ✅ ALWAYS handle multiple records
+- ✅ Use collections (List, Set, Map)
+- ❌ NEVER assume single-record processing
+
+### SOQL
+- ❌ NEVER in loops
+- ❌ NEVER use `SELECT *`
+- ✅ Use indexed fields in WHERE
+- ✅ Use bind variables (`:variable`)
+- ✅ LIMIT results (max 50,000 per transaction)
+- ❌ Avoid NOT, !=, LIKE with leading %
+
+### DML
+- ❌ NEVER in loops
+- ✅ Use collections for batch operations
+- ✅ Handle exceptions
+- ✅ Use Database methods for partial success
+
+### Governor Limits (Per Transaction)
+- 100 SOQL queries
+- 150 DML statements
+- 50,000 total records retrieved by SOQL
+- 10,000 records total DML
+
+**Stay Within Limits:**
+- Bulkify all operations
+- Use Maps for O(1) lookups (not nested loops)
+- Move SOQL/DML outside loops
+
+### Batch Apex
+- ✅ Use `Database.Stateful` for state
+- ✅ Return `Database.QueryLocator` (up to 50M records)
+- ✅ Implement: start(), execute(), finish()
+- ✅ Send emails only in finish()
+- ✅ Default batch size: 200
+
+### Scheduled Apex
+- ✅ Validate cron expressions
+- ✅ Handle exceptions
+- ✅ Cleanup old jobs before creating new
+
+### Sharing
+- ✅ ALWAYS declare: `with sharing`, `without sharing`, or `inherited sharing`
+- ✅ Default: `with sharing`
+
+### Collections
+- ✅ Use `Set<Id>` for unique IDs
+- ✅ Use `Map<Id, SObject>` for lookups
+- ❌ Avoid nested loops
+
+---
+
+## Testing Standards
+
+### Test Structure
+```apex
+@IsTest
+static void testMethod_Scenario_Expected() {
+    // Arrange
+    // Act
+    Test.startTest();
+    // code
+    Test.stopTest();
+    // Assert
+    Assert.areEqual(expected, actual, 'message');
+}
+```
+
+### Good Tests
+✅ Test behavior, use assertions, test edge cases, bulk data, descriptive names
+
+❌ Constructor-only, no assertions, duplicates, trivial getters/setters
+
+---
+
+## Anti-Patterns (NEVER Do This)
+
+### SOQL in Loops
+```apex
+// BAD
+for (Account acc : accounts) {
+    List<Contact> c = [SELECT Id FROM Contact WHERE AccountId = :acc.Id];
+}
+
+// GOOD
+Set<Id> ids = new Set<Id>();
+for (Account acc : accounts) ids.add(acc.Id);
+List<Contact> c = [SELECT Id FROM Contact WHERE AccountId IN :ids];
+```
+
+### DML in Loops
+```apex
+// BAD
+for (Account acc : accounts) update acc;
+
+// GOOD
+update accounts;
+```
+
+### Nested Loops
+```apex
+// BAD - O(n²)
+for (Account acc : accounts) {
+    for (Contact con : contacts) {
+        if (con.AccountId == acc.Id) { }
+    }
+}
+
+// GOOD - O(n)
+Map<Id, List<Contact>> map = new Map<Id, List<Contact>>();
+for (Contact con : contacts) {
+    if (!map.containsKey(con.AccountId)) map.put(con.AccountId, new List<Contact>());
+    map.get(con.AccountId).add(con);
+}
+for (Account acc : accounts) {
+    List<Contact> related = map.get(acc.Id);
+}
+```
+
+---
+
+## Documentation
+
+### When to Comment
+✅ Complex algorithms, non-obvious logic, public APIs, key decisions
+❌ Obvious code, bad variable names, instead of refactoring
+
+### JavaDoc
+```apex
+/**
+ * Description
+ * @param name Description
+ * @return Description
+ * @throws Type When/why
+ */
+```
+
+---
+
+## Deployment
+
+**Checklist:**
+- [ ] Tests pass (100%)
+- [ ] Coverage ≥ 75%
+- [ ] No linter errors
+- [ ] Formatted
+- [ ] Tested in sandbox
+
+---
+
+## Commit Format
+
+```
+type(scope): description
+
+feat: New feature
+fix: Bug fix
+docs: Documentation
+test: Tests
+refactor: Code change
+```
+
+---
+
+## AI Assistant Guidelines
+
+**Making Changes:**
+1. Read existing code
+2. Follow conventions
+3. Test thoroughly
+4. Update docs
+5. Run verification
+
+**Reviewing:**
+1. Check unused code
+2. Verify tests
+3. Ensure error handling
+4. Validate security
+5. Confirm SOLID
+6. Check governor limits
+
+**Writing Tests:**
+1. Test behavior
+2. Avoid trivial tests
+3. Use assertions
+4. Test edge cases
+5. Descriptive names
+6. Test bulk data
+
+---
+
+## Resources
+
+- [Apex Developer Guide](https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/)
+- [Batch Best Practices](https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_batch_best_practices.htm)
+- [Testing Best Practices](https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_testing_best_practices.htm)
+- [Governor Limits](https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_gov_limits.htm)

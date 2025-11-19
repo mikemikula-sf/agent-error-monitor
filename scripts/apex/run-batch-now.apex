@@ -9,7 +9,8 @@ Integer batchSize = 200; // Number of records to process per batch
 Integer lookbackHours = 24; // Hours to look back for errors
 
 AgentErrorMonitorBatch batch = new AgentErrorMonitorBatch(
-  recipientEmail
+  recipientEmail,
+  lookbackHours
 );
 Id batchJobId = Database.executeBatch(batch, batchSize);
 

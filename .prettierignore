@@ -1,0 +1,30 @@
+# Salesforce metadata XML files
+**/*.cls-meta.xml
+**/*.trigger-meta.xml
+**/*.object-meta.xml
+**/*.field-meta.xml
+**/*.layout-meta.xml
+**/*.permissionset-meta.xml
+**/*.profile-meta.xml
+**/package.xml
+**/*-meta.xml
+
+# Lock files
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Build artifacts
+**/node_modules/
+**/.sfdx/
+**/.sf/
+**/coverage/
+**/dist/
+**/build/
+
+# Config files that may have specific formatting
+eslint.config.js
+jest.config.js
+*.config.js
+sfdx-project.json
+

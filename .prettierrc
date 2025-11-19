@@ -1,0 +1,19 @@
+{
+  "printWidth": 120,
+  "tabWidth": 2,
+  "useTabs": false,
+  "trailingComma": "es5",
+  "singleQuote": true,
+  "plugins": ["prettier-plugin-apex"],
+  "overrides": [
+    {
+      "files": ["*.apex", "*.cls", "*.trigger"],
+      "options": {
+        "parser": "apex",
+        "printWidth": 150,
+        "tabWidth": 2
+      }
+    }
+  ]
+}
+

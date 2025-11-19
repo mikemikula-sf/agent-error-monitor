@@ -1,169 +1,84 @@
 /**
- * @description Schedulable class to run AgentErrorMonitorBatch on a recurring schedule
- *
- * Usage Examples:
- *
- * // Schedule to run daily at 8 AM
- * String cronExp = '0 0 8 * * ?';
- * String jobName = 'Agent Error Monitor - Daily';
- * System.schedule(jobName, cronExp, new AgentErrorMonitorScheduler('admin@example.com'));
- *
- * // Programmatic scheduling using helper method
- * AgentErrorMonitorScheduler.scheduleDaily('admin@example.com');
+ * Scheduler class for Agent Error Monitor batch jobs
+ * Uses Strategy pattern to support multiple scheduling types (Daily, Hourly, Interval)
+ * Handles batch job execution and error notifications
  */
 public with sharing class AgentErrorMonitorScheduler implements Schedulable {
-  /**
-   * @description Enum for schedule types
-   */
   public enum ScheduleType {
     DAILY,
     HOURLY,
     INTERVAL
   }
 
-  private String recipientEmail;
-  private Integer batchSize;
+  public class ScheduleConfig {
+    public String cronExpression { get; private set; }
+    public String jobName { get; private set; }
+    public Integer lookbackHours { get; private set; }
 
-  private static final Integer DEFAULT_BATCH_SIZE = 200;
-
-  public AgentErrorMonitorScheduler(String recipientEmail) {
-    if (String.isBlank(recipientEmail)) {
-      throw new IllegalArgumentException('Recipient email is required');
-    }
-    this.recipientEmail = recipientEmail;
-    this.batchSize = DEFAULT_BATCH_SIZE;
-  }
-
-  public AgentErrorMonitorScheduler(String recipientEmail, Integer batchSize) {
-    if (String.isBlank(recipientEmail)) {
-      throw new IllegalArgumentException('Recipient email is required');
-    }
-    this.recipientEmail = recipientEmail;
-    this.batchSize = batchSize;
-  }
-
-  public void execute(SchedulableContext sc) {
-    try {
-      AgentErrorMonitorBatch batch = new AgentErrorMonitorBatch(recipientEmail);
-      Database.executeBatch(batch, batchSize);
-    } catch (Exception e) {
-      AgentErrorMonitorService.logException(e);
-      sendErrorNotification(e);
+    public ScheduleConfig(String cronExpression, String jobName, Integer lookbackHours) {
+      this.cronExpression = cronExpression;
+      this.jobName = jobName;
+      this.lookbackHours = lookbackHours;
     }
   }
 
-  /**
-   * @description Helper method to schedule the job to run daily at specified hour with custom batch size
-   * @param recipientEmail Email address for notifications
-   * @param hour Hour of day (0-23) to run the job
-   * @param batchSize Batch size for processing
-   * @return String Scheduled job ID
-   */
-  public static String scheduleDaily(String recipientEmail, Integer hour, Integer batchSize) {
-    if (hour < 0 || hour > 23) {
-      throw new IllegalArgumentException('Hour must be between 0 and 23');
+  public interface IScheduleStrategy {
+    ScheduleConfig createConfig(Integer param);
+    void validate(Integer param);
+  }
+
+  public class DailyScheduleStrategy implements IScheduleStrategy {
+    public ScheduleConfig createConfig(Integer dailyHour) {
+      String cronExp = '0 0 ' + dailyHour + ' * * ?';
+      String jobName = 'Agent Error Monitor - Daily ' + dailyHour + ':00';
+      Integer lookbackHours = 24;
+      return new ScheduleConfig(cronExp, jobName, lookbackHours);
     }
 
-    String cronExp = '0 0 ' + hour + ' * * ?';
-    String jobName = 'Agent Error Monitor - Daily ' + hour + ':00';
-
-    return System.schedule(jobName, cronExp, new AgentErrorMonitorScheduler(recipientEmail, batchSize));
+    public void validate(Integer dailyHour) {
+      if (dailyHour == null || dailyHour < 0 || dailyHour > 23) {
+        throw new IllegalArgumentException('Hour must be between 0 and 23');
+      }
+    }
   }
 
-  /**
-   * @description Helper method to schedule the job to run daily at specified hour
-   * @param recipientEmail Email address for notifications
-   * @param hour Hour of day (0-23) to run the job
-   * @return String Scheduled job ID
-   */
-  public static String scheduleDaily(String recipientEmail, Integer hour) {
-    return scheduleDaily(recipientEmail, hour, DEFAULT_BATCH_SIZE);
-  }
-
-  /**
-   * @description Helper method to schedule the job to run daily at 8 AM
-   * @param recipientEmail Email address for notifications
-   * @return String Scheduled job ID
-   */
-  public static String scheduleDaily(String recipientEmail) {
-    return scheduleDaily(recipientEmail, 8, DEFAULT_BATCH_SIZE);
-  }
-
-  /**
-   * @description Helper method to schedule the job to run hourly with custom batch size
-   * @param recipientEmail Email address for notifications
-   * @param batchSize Batch size for processing
-   * @return String Scheduled job ID
-   */
-  public static String scheduleHourly(String recipientEmail, Integer batchSize) {
-    String cronExp = '0 0 * * * ?';
-    String jobName = 'Agent Error Monitor - Hourly';
-
-    return System.schedule(jobName, cronExp, new AgentErrorMonitorScheduler(recipientEmail, batchSize));
-  }
-
-  /**
-   * @description Helper method to schedule the job to run hourly
-   * @param recipientEmail Email address for notifications
-   * @return String Scheduled job ID
-   */
-  public static String scheduleHourly(String recipientEmail) {
-    return scheduleHourly(recipientEmail, DEFAULT_BATCH_SIZE);
-  }
-
-  /**
-   * @description Helper method to schedule the job to run every N hours with custom batch size
-   * @param recipientEmail Email address for notifications
-   * @param intervalHours Interval in hours (1-12)
-   * @param batchSize Batch size for processing
-   * @return String Scheduled job ID
-   */
-  public static String scheduleEveryNHours(String recipientEmail, Integer intervalHours, Integer batchSize) {
-    if (intervalHours < 1 || intervalHours > 12) {
-      throw new IllegalArgumentException('Interval must be between 1 and 12 hours');
+  public class HourlyScheduleStrategy implements IScheduleStrategy {
+    public ScheduleConfig createConfig(Integer param) {
+      String cronExp = '0 0 * * * ?';
+      String jobName = 'Agent Error Monitor - Hourly';
+      Integer lookbackHours = 1;
+      return new ScheduleConfig(cronExp, jobName, lookbackHours);
     }
 
-    String cronExp = '0 0 0/' + intervalHours + ' * * ?';
-    String jobName = 'Agent Error Monitor - Every ' + intervalHours + ' Hours';
-
-    return System.schedule(jobName, cronExp, new AgentErrorMonitorScheduler(recipientEmail, batchSize));
+    public void validate(Integer param) {
+    }
   }
 
-  /**
-   * @description Helper method to schedule the job to run every N hours
-   * @param recipientEmail Email address for notifications
-   * @param intervalHours Interval in hours (1-12)
-   * @return String Scheduled job ID
-   */
-  public static String scheduleEveryNHours(String recipientEmail, Integer intervalHours) {
-    return scheduleEveryNHours(recipientEmail, intervalHours, DEFAULT_BATCH_SIZE);
+  public class IntervalScheduleStrategy implements IScheduleStrategy {
+    public ScheduleConfig createConfig(Integer intervalHours) {
+      String cronExp = '0 0 0/' + intervalHours + ' * * ?';
+      String jobName = 'Agent Error Monitor - Every ' + intervalHours + ' Hours';
+      Integer lookbackHours = intervalHours;
+      return new ScheduleConfig(cronExp, jobName, lookbackHours);
+    }
+
+    public void validate(Integer intervalHours) {
+      if (intervalHours == null || intervalHours < 1 || intervalHours > 12) {
+        throw new IllegalArgumentException('Interval must be between 1 and 12 hours');
+      }
+    }
   }
 
-  /**
-   * @description Unified scheduling method that handles all schedule types
-   * @param recipientEmail Email address for notifications
-   * @param scheduleType Type of schedule (DAILY, HOURLY, or INTERVAL)
-   * @param dailyHour Hour of day for DAILY schedule (0-23)
-   * @param intervalHours Hours between runs for INTERVAL schedule (1-12)
-   * @param batchSize Batch size for processing
-   * @return String Scheduled job ID
-   */
-  public static String schedule(
-    String recipientEmail,
-    ScheduleType scheduleType,
-    Integer dailyHour,
-    Integer intervalHours,
-    Integer batchSize
-  ) {
+  private static IScheduleStrategy getStrategy(ScheduleType scheduleType) {
     switch on scheduleType {
       when DAILY {
-        return scheduleDaily(recipientEmail, dailyHour, batchSize);
+        return new DailyScheduleStrategy();
       }
       when HOURLY {
-        return scheduleHourly(recipientEmail, batchSize);
+        return new HourlyScheduleStrategy();
       }
       when INTERVAL {
-        return scheduleEveryNHours(recipientEmail, intervalHours, batchSize);
+        return new IntervalScheduleStrategy();
       }
       when else {
         throw new IllegalArgumentException('Invalid scheduleType: ' + scheduleType);
@@ -171,9 +86,84 @@ public with sharing class AgentErrorMonitorScheduler implements Schedulable {
     }
   }
 
-  /**
-   * @description Unschedules all Agent Error Monitor jobs
-   */
+  private String recipientEmail;
+  private Integer batchSize;
+  private Integer lookbackHours;
+
+  public AgentErrorMonitorScheduler(String recipientEmail) {
+    this(recipientEmail, AgentErrorMonitorService.DEFAULT_BATCH_SIZE, AgentErrorMonitorService.DEFAULT_LOOKBACK_HOURS);
+  }
+
+  public AgentErrorMonitorScheduler(String recipientEmail, Integer batchSize) {
+    this(recipientEmail, batchSize, AgentErrorMonitorService.DEFAULT_LOOKBACK_HOURS);
+  }
+
+  public AgentErrorMonitorScheduler(String recipientEmail, Integer batchSize, Integer lookbackHours) {
+    AgentErrorMonitorService.validateEmail(recipientEmail);
+    AgentErrorMonitorService.validateBatchSize(batchSize, AgentErrorMonitorService.MIN_BATCH_SIZE, AgentErrorMonitorService.MAX_BATCH_SIZE);
+    AgentErrorMonitorService.validateHoursBack(lookbackHours);
+
+    this.recipientEmail = recipientEmail;
+    this.batchSize = batchSize;
+    this.lookbackHours = lookbackHours;
+  }
+
+  public void execute(SchedulableContext sc) {
+    try {
+      AgentErrorMonitorBatch batch = new AgentErrorMonitorBatch(recipientEmail, lookbackHours);
+      Database.executeBatch(batch, batchSize);
+    } catch (Exception e) {
+      AgentErrorMonitorService.logException(e);
+      sendErrorNotification(e);
+    }
+  }
+
+  public static String scheduleDaily(String recipientEmail, Integer hour, Integer batchSize) {
+    return schedule(recipientEmail, ScheduleType.DAILY, hour, batchSize);
+  }
+
+  public static String scheduleDaily(String recipientEmail, Integer hour) {
+    return scheduleDaily(recipientEmail, hour, AgentErrorMonitorService.DEFAULT_BATCH_SIZE);
+  }
+
+  public static String scheduleDaily(String recipientEmail) {
+    return scheduleDaily(recipientEmail, 8, AgentErrorMonitorService.DEFAULT_BATCH_SIZE);
+  }
+
+  public static String scheduleHourly(String recipientEmail, Integer batchSize) {
+    return schedule(recipientEmail, ScheduleType.HOURLY, null, batchSize);
+  }
+
+  public static String scheduleHourly(String recipientEmail) {
+    return scheduleHourly(recipientEmail, AgentErrorMonitorService.DEFAULT_BATCH_SIZE);
+  }
+
+  public static String scheduleEveryNHours(String recipientEmail, Integer intervalHours, Integer batchSize) {
+    return schedule(recipientEmail, ScheduleType.INTERVAL, intervalHours, batchSize);
+  }
+
+  public static String scheduleEveryNHours(String recipientEmail, Integer intervalHours) {
+    return scheduleEveryNHours(recipientEmail, intervalHours, AgentErrorMonitorService.DEFAULT_BATCH_SIZE);
+  }
+
+  private static ScheduleConfig buildScheduleConfig(ScheduleType scheduleType, Integer param) {
+    IScheduleStrategy strategy = getStrategy(scheduleType);
+    strategy.validate(param);
+    return strategy.createConfig(param);
+  }
+
+  public static String schedule(String recipientEmail, ScheduleType scheduleType, Integer param, Integer batchSize, Integer lookbackHours) {
+    ScheduleConfig config = buildScheduleConfig(scheduleType, param);
+
+    Integer effectiveLookback = lookbackHours != null ? lookbackHours : config.lookbackHours;
+
+    return System.schedule(config.jobName, config.cronExpression, new AgentErrorMonitorScheduler(recipientEmail, batchSize, effectiveLookback));
+  }
+
+  public static String schedule(String recipientEmail, ScheduleType scheduleType, Integer param, Integer batchSize) {
+    return schedule(recipientEmail, scheduleType, param, batchSize, null);
+  }
+
   public static void unscheduleAll() {
     List<CronTrigger> scheduledJobs = [
       SELECT Id, CronJobDetail.Name
@@ -186,10 +176,6 @@ public with sharing class AgentErrorMonitorScheduler implements Schedulable {
     }
   }
 
-  /**
-   * @description Gets list of currently scheduled jobs
-   * @return List<CronTrigger> List of scheduled jobs
-   */
   public static List<CronTrigger> getScheduledJobs() {
     return [
       SELECT Id, CronJobDetail.Name, CronExpression, State, NextFireTime, PreviousFireTime
@@ -199,12 +185,7 @@ public with sharing class AgentErrorMonitorScheduler implements Schedulable {
     ];
   }
 
-  /**
-   * @description Sends error notification email when scheduler fails
-   * @param e Exception that occurred
-   */
   private void sendErrorNotification(Exception e) {
     AgentErrorMonitorService.sendSchedulerErrorNotification(e, recipientEmail);
   }
 }
-
