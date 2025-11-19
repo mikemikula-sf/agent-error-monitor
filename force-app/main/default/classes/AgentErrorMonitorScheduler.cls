@@ -110,7 +110,7 @@ public with sharing class AgentErrorMonitorScheduler implements Schedulable {
 
   public void execute(SchedulableContext sc) {
     try {
-      AgentErrorMonitorBatch batch = new AgentErrorMonitorBatch(recipientEmail, lookbackHours);
+      AgentErrorMonitorBatch batch = new AgentErrorMonitorBatch(recipientEmail, lookbackHours, true);
       Database.executeBatch(batch, batchSize);
     } catch (Exception e) {
       AgentErrorMonitorService.logException(e);

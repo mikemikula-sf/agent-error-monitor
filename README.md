@@ -1,4 +1,4 @@
-# Agent Error Monitor (v1.1.0)
+# Agent Error Monitor (v1.2.0)
 
 **Automatically detect and get notified when your Salesforce AI Agents encounter errors.**
 
@@ -15,7 +15,7 @@ This solution monitors AI Agent interactions in Data Cloud and sends you email a
 
 **Example Email Alert:**
 
-![Email Example](AgentErrorMonitor-Email-Example.png)
+![Email Example](AgentErrorMonitor-Email-Example-v2.png)
 
 ---
 
@@ -602,20 +602,16 @@ See the example email at the top of this README.
 
 ### Code Coverage
 
-This project includes **comprehensive test coverage** (90%+):
+This project includes **comprehensive test coverage** (above 90%+):
 
 | Test Class                     | Coverage | Tests  | Status |
 | ------------------------------ | -------- | ------ | ------ |
 | **AgentErrorMonitorBatch**     | 100%     | 9      | ✅     |
 | **AgentErrorMonitorScheduler** | 94%      | 25     | ✅     |
-| **AgentErrorMonitorService**   | 92%      | 28     | ✅     |
-| **Total**                      | **90%+** | **62** | ✅     |
+| **AgentErrorMonitorService**   | 93%      | 30     | ✅     |
 
 **Latest Test Run:** November 19, 2025  
-**Pass Rate:** 100% (62/62 tests passing)  
-**Execution Time:** 8.7 seconds
-
-📊 **[View Detailed Test Coverage Report](TEST_COVERAGE_LOG.md)**
+**Pass Rate:** 100% (64/64 tests passing)
 
 ### Run Tests
 
@@ -1242,7 +1238,7 @@ If this project helps you monitor your AI Agents, please consider:
 
 ---
 
-**Last Updated**: November 18, 2025  
-**Version**: 1.1.0  
+**Last Updated**: November 19, 2025  
+**Version**: 1.2.0  
 **API Version**: 64.0  
 **Test Coverage**: 90%+ (62 tests passing)

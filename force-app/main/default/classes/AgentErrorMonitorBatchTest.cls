@@ -1,20 +1,47 @@
 @IsTest(SeeAllData=false)
 private class AgentErrorMonitorBatchTest {
-  @IsTest
-  static void testBatchWithErrors() {
-    Test.startTest();
+  // ============================================================================
+  // TEST DATA HELPERS
+  // ============================================================================
 
-    AgentErrorMonitorBatch batch = new AgentErrorMonitorBatch('test@example.com');
-    Id batchId = Database.executeBatch(batch, 200);
+  private static AgentErrorMonitorService.ErrorRecord createMockError(Id recordId, String errorMessage) {
+    AgentErrorMonitorService.ErrorRecord error = new AgentErrorMonitorService.ErrorRecord();
+    error.recordId = recordId;
+    error.errorMessage = errorMessage;
+    error.occurredAt = DateTime.now();
+    error.sessionId = 'TEST_SESSION_' + recordId;
+    error.messageType = 'Error';
+    return error;
+  }
 
-    Test.stopTest();
-
-    AsyncApexJob job = [
+  private static AsyncApexJob queryBatchJob(Id batchId) {
+    return [
       SELECT Id, Status, NumberOfErrors, JobItemsProcessed, TotalJobItems
       FROM AsyncApexJob
       WHERE Id = :batchId
     ];
+  }
 
+  private static void assertExceptionThrown(String methodCall, String expectedMessage) {
+    Assert.fail('Should throw IllegalArgumentException for ' + methodCall);
+  }
+
+  private static void assertExceptionMessage(Exception e, String expectedSubstring) {
+    Assert.isTrue(e.getMessage().contains(expectedSubstring), 'Exception message should contain: ' + expectedSubstring);
+  }
+
+  // ============================================================================
+  // TESTS
+  // ============================================================================
+
+  @IsTest
+  static void testBatchWithErrors() {
+    Test.startTest();
+    AgentErrorMonitorBatch batch = new AgentErrorMonitorBatch('test@example.com');
+    Id batchId = Database.executeBatch(batch, 200);
+    Test.stopTest();
+
+    AsyncApexJob job = queryBatchJob(batchId);
     Assert.areEqual('Completed', job.Status, 'Batch job should complete successfully');
     Assert.areEqual(0, job.NumberOfErrors, 'Batch job should not have any errors');
   }
@@ -24,18 +51,11 @@ private class AgentErrorMonitorBatchTest {
     Integer lookbackHours = 48;
 
     Test.startTest();
-
     AgentErrorMonitorBatch batch = new AgentErrorMonitorBatch('test@example.com', lookbackHours);
     Id batchId = Database.executeBatch(batch, 200);
-
     Test.stopTest();
 
-    AsyncApexJob job = [
-      SELECT Id, Status
-      FROM AsyncApexJob
-      WHERE Id = :batchId
-    ];
-
+    AsyncApexJob job = queryBatchJob(batchId);
     Assert.areEqual('Completed', job.Status, 'Batch job should complete successfully');
     Assert.areEqual(lookbackHours, batch.lookbackHours, 'Lookback hours should be set correctly');
   }
@@ -44,43 +64,37 @@ private class AgentErrorMonitorBatchTest {
   static void testConstructorValidationInvalidLookback() {
     try {
       AgentErrorMonitorBatch batch = new AgentErrorMonitorBatch('test@example.com', 0);
-      Assert.fail('Should throw IllegalArgumentException for invalid lookback');
+      assertExceptionThrown('invalid lookback', 'hoursBack must be between');
     } catch (IllegalArgumentException e) {
-      Assert.isTrue(e.getMessage().contains('hoursBack must be between'), 'Should validate lookback hours');
+      assertExceptionMessage(e, 'hoursBack must be between');
     }
 
     try {
       AgentErrorMonitorBatch batch = new AgentErrorMonitorBatch('test@example.com', null);
-      Assert.fail('Should throw IllegalArgumentException for null lookback');
+      assertExceptionThrown('null lookback', 'hoursBack must be between');
     } catch (IllegalArgumentException e) {
-      Assert.isTrue(e.getMessage().contains('hoursBack must be between'), 'Should validate lookback hours');
+      assertExceptionMessage(e, 'hoursBack must be between');
     }
   }
 
   @IsTest
   static void testConstructorValidationNull() {
-    Boolean exceptionThrown = false;
     try {
       AgentErrorMonitorBatch batch = new AgentErrorMonitorBatch(null);
-      Assert.fail('Should throw IllegalArgumentException for null email');
+      assertExceptionThrown('null email', 'required');
     } catch (IllegalArgumentException e) {
-      exceptionThrown = true;
-      Assert.isTrue(e.getMessage().contains('required'), 'Should validate email is required');
+      assertExceptionMessage(e, 'required');
     }
-    Assert.isTrue(exceptionThrown, 'Exception should have been thrown');
   }
 
   @IsTest
   static void testConstructorValidationBlank() {
-    Boolean exceptionThrown = false;
     try {
       AgentErrorMonitorBatch batch = new AgentErrorMonitorBatch('');
-      Assert.fail('Should throw IllegalArgumentException for blank email');
+      assertExceptionThrown('blank email', 'required');
     } catch (IllegalArgumentException e) {
-      exceptionThrown = true;
-      Assert.isTrue(e.getMessage().contains('required'), 'Should validate email is required');
+      assertExceptionMessage(e, 'required');
     }
-    Assert.isTrue(exceptionThrown, 'Exception should have been thrown');
   }
 
   @IsTest
@@ -111,23 +125,14 @@ private class AgentErrorMonitorBatchTest {
   @IsTest
   static void testFinishWithErrorNotification() {
     AgentErrorMonitorBatch batch = new AgentErrorMonitorBatch('test@example.com');
-
     Account testAccount = new Account(Name = 'Test Error Account');
     insert testAccount;
 
     Test.startTest();
-
     AgentErrorMonitorService.ProcessingResult result = new AgentErrorMonitorService.ProcessingResult();
-    AgentErrorMonitorService.ErrorRecord error = new AgentErrorMonitorService.ErrorRecord();
-    error.recordId = testAccount.Id;
-    error.errorMessage = 'Test error with error ID: 12345';
-    error.occurredAt = DateTime.now();
-    result.errorRecords.add(error);
-    result.errorCount = 1;
+    result.errorRecords.add(createMockError(testAccount.Id, 'Test error with error ID: 12345'));
     result.totalRecords = 1;
-
     Boolean sent = AgentErrorMonitorService.sendErrorNotification(result.errorRecords, 'test@example.com', 'TEST_JOB_ID', 10);
-
     Test.stopTest();
 
     Assert.isNotNull(sent, 'Notification should be attempted');
@@ -136,33 +141,18 @@ private class AgentErrorMonitorBatchTest {
   @IsTest
   static void testFinishMethodWithErrorsUsingTestVisible() {
     AgentErrorMonitorBatch batch = new AgentErrorMonitorBatch('test@example.com');
-
     Account testAccount = new Account(Name = 'Test Error Account');
     insert testAccount;
 
-    AgentErrorMonitorService.ErrorRecord mockError = new AgentErrorMonitorService.ErrorRecord();
-    mockError.recordId = testAccount.Id;
-    mockError.errorMessage = 'Test error with error ID: ABC123';
-    mockError.occurredAt = DateTime.now();
-    mockError.sessionId = 'TEST_SESSION_123';
-    mockError.messageType = 'Error';
-
-    batch.result.errorRecords.add(mockError);
-    batch.result.errorCount = 1;
+    batch.result.errorRecords.add(createMockError(testAccount.Id, 'Test error with error ID: ABC123'));
     batch.result.totalRecords = 1;
 
     Test.startTest();
-
     Id batchId = Database.executeBatch(batch, 200);
-
     Test.stopTest();
 
-    AsyncApexJob job = [
-      SELECT Id, Status
-      FROM AsyncApexJob
-      WHERE Id = :batchId
-    ];
+    AsyncApexJob job = queryBatchJob(batchId);
     Assert.areEqual('Completed', job.Status, 'Batch should complete successfully');
-    Assert.areEqual(1, batch.result.errorCount, 'Should have 1 error configured');
+    Assert.areEqual(1, batch.result.totalRecords, 'Should have 1 error configured');
   }
 }

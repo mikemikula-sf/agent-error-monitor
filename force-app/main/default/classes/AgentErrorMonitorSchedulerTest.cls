@@ -1,21 +1,39 @@
 @IsTest(SeeAllData=false)
 private class AgentErrorMonitorSchedulerTest {
+  // ============================================================================
+  // TEST DATA HELPERS
+  // ============================================================================
+
+  private static CronTrigger queryCronTrigger(String jobId) {
+    return [
+      SELECT Id, CronExpression, State, NextFireTime
+      FROM CronTrigger
+      WHERE Id = :jobId
+    ];
+  }
+
+  private static void assertCronExpression(String jobId, String expectedPattern, String message) {
+    CronTrigger ct = queryCronTrigger(jobId);
+    Assert.isTrue(ct.CronExpression.contains(expectedPattern), message + ' (actual: ' + ct.CronExpression + ')');
+  }
+
+  private static void assertExceptionMessage(Exception e, String expectedSubstring) {
+    Assert.isTrue(e.getMessage().contains(expectedSubstring), 'Exception message should contain: ' + expectedSubstring);
+  }
+
+  // ============================================================================
+  // TESTS
+  // ============================================================================
+
   @IsTest
   static void testScheduledExecution() {
     String cronExp = '0 0 8 * * ?';
 
     Test.startTest();
-
     String jobId = System.schedule('Test Data Cloud Monitor', cronExp, new AgentErrorMonitorScheduler('test@example.com'));
-
     Test.stopTest();
 
-    CronTrigger ct = [
-      SELECT Id, CronExpression, State, NextFireTime
-      FROM CronTrigger
-      WHERE Id = :jobId
-    ];
-
+    CronTrigger ct = queryCronTrigger(jobId);
     Assert.isNotNull(ct, 'Scheduled job should exist');
     Assert.areEqual(cronExp, ct.CronExpression, 'Cron expression should match');
   }
@@ -28,14 +46,14 @@ private class AgentErrorMonitorSchedulerTest {
       AgentErrorMonitorScheduler scheduler = new AgentErrorMonitorScheduler(null);
       Assert.fail('Should throw IllegalArgumentException for null email');
     } catch (IllegalArgumentException e) {
-      Assert.isTrue(e.getMessage().contains('required'), 'Should validate email is required');
+      assertExceptionMessage(e, 'required');
     }
 
     try {
       AgentErrorMonitorScheduler scheduler = new AgentErrorMonitorScheduler('');
       Assert.fail('Should throw IllegalArgumentException for blank email');
     } catch (IllegalArgumentException e) {
-      Assert.isTrue(e.getMessage().contains('required'), 'Should validate email is required');
+      assertExceptionMessage(e, 'required');
     }
 
     Test.stopTest();
@@ -47,39 +65,22 @@ private class AgentErrorMonitorSchedulerTest {
     Integer hour = 9;
 
     Test.startTest();
-
     String jobId = AgentErrorMonitorScheduler.scheduleDaily(email, hour);
-
     Test.stopTest();
 
-    CronTrigger ct = [
-      SELECT Id, CronExpression
-      FROM CronTrigger
-      WHERE Id = :jobId
-    ];
-
-    Assert.isTrue(ct.CronExpression.contains('0 0 9'), 'Cron expression should run at 9:00');
+    assertCronExpression(jobId, '0 0 9', 'Cron expression should run at 9:00');
   }
 
   @IsTest
   static void testScheduleDailyDefault() {
     String email = 'default@test.com';
-
     AgentErrorMonitorScheduler.unscheduleAll();
 
     Test.startTest();
-
     String jobId = AgentErrorMonitorScheduler.scheduleDaily(email);
-
     Test.stopTest();
 
-    CronTrigger ct = [
-      SELECT Id, CronExpression
-      FROM CronTrigger
-      WHERE Id = :jobId
-    ];
-
-    Assert.isTrue(ct.CronExpression.contains('0 0 8'), 'Cron expression should run at 8:00 (default)');
+    assertCronExpression(jobId, '0 0 8', 'Cron expression should run at 8:00 (default)');
   }
 
   @IsTest
@@ -87,17 +88,10 @@ private class AgentErrorMonitorSchedulerTest {
     String email = 'hourly@test.com';
 
     Test.startTest();
-
     String jobId = AgentErrorMonitorScheduler.scheduleHourly(email);
-
     Test.stopTest();
 
-    CronTrigger ct = [
-      SELECT Id, CronExpression
-      FROM CronTrigger
-      WHERE Id = :jobId
-    ];
-
+    CronTrigger ct = queryCronTrigger(jobId);
     Assert.areEqual('0 0 * * * ?', ct.CronExpression, 'Cron expression should run hourly');
   }
 

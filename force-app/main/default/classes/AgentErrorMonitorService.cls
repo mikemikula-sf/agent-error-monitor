@@ -12,11 +12,10 @@ public with sharing class AgentErrorMonitorService {
   public static final Integer DEFAULT_BATCH_SIZE = 200;
   public static final Integer MIN_BATCH_SIZE = 1;
   public static final Integer MAX_BATCH_SIZE = 2000;
-  public static final Integer MAX_ERROR_DETAILS = 100;
 
   public static final Integer MIN_HOURS = 1;
   public static final Integer MAX_HOURS = 720;
-  public static final Integer MAX_QUERY_RECORDS = 200;
+  public static final Integer MAX_QUERY_RECORDS = 100;
   public static final Integer MAX_ERROR_MESSAGE_LENGTH = 1000;
 
   public static final String AI_AGENT_OBJECT = 'ssot__AiAgentInteractionMessage__dlm';
@@ -45,6 +44,24 @@ public with sharing class AgentErrorMonitorService {
   public static final String TABLE_STYLE = 'border-collapse: collapse; width: 100%; border: 1px solid ' + COLOR_BORDER + ';';
   public static final String TABLE_HEADER_STYLE = 'background-color: ' + COLOR_PRIMARY + '; color: white;';
   public static final String TABLE_CELL_HEADER_STYLE = 'padding: 10px; text-align: left; border: 1px solid ' + COLOR_BORDER + ';';
+
+  // ============================================================================
+  // CONTEXT OBJECTS
+  // ============================================================================
+
+  public class JobContext {
+    public String jobId { get; set; }
+    public Long durationSeconds { get; set; }
+    public Boolean isScheduled { get; set; }
+    public Integer lookbackHours { get; set; }
+
+    public JobContext(String jobId, Long durationSeconds, Boolean isScheduled, Integer lookbackHours) {
+      this.jobId = jobId;
+      this.durationSeconds = durationSeconds;
+      this.isScheduled = isScheduled;
+      this.lookbackHours = lookbackHours;
+    }
+  }
 
   // ============================================================================
   // VALIDATION
@@ -167,17 +184,27 @@ public with sharing class AgentErrorMonitorService {
     return '<pre' + styleAttr + '>' + content + '</pre>';
   }
 
-  public static String buildSummarySection(Integer totalErrorCount, Long durationSeconds, String jobId) {
+  public static String buildSummarySection(Integer totalErrorCount, JobContext jobContext) {
+    String orgUrl = getOrgUrl();
     List<String> tableRows = new List<String>();
 
     tableRows.add(buildSummaryRow('Total Errors Found:', String.valueOf(totalErrorCount), 'color: ' + COLOR_ERROR + ';'));
 
-    if (durationSeconds > 0) {
-      tableRows.add(buildSummaryRow('Execution Time:', durationSeconds + ' seconds', null));
+    if (jobContext.durationSeconds > 0) {
+      tableRows.add(buildSummaryRow('Execution Time:', jobContext.durationSeconds + ' seconds', null));
     }
 
-    if (String.isNotBlank(jobId)) {
-      tableRows.add(buildSummaryRow('Job ID:', jobId, null));
+    String jobType = jobContext.isScheduled ? 'Scheduled' : 'Manual';
+    tableRows.add(buildSummaryRow('Job Type:', jobType, null));
+
+    if (jobContext.isScheduled && jobContext.lookbackHours != null) {
+      String lookbackDisplay = jobContext.lookbackHours + ' hour' + (jobContext.lookbackHours != 1 ? 's' : '');
+      tableRows.add(buildSummaryRow('Lookback Period:', lookbackDisplay, null));
+    }
+
+    if (String.isNotBlank(jobContext.jobId)) {
+      String jobLink = buildJobLink(jobContext.jobId, orgUrl, jobContext.isScheduled);
+      tableRows.add(buildSummaryRow('Job ID:', jobLink, null));
     }
 
     tableRows.add(buildSummaryRow('Timestamp:', DateTime.now().format('yyyy-MM-dd HH:mm:ss z'), null));
@@ -206,7 +233,9 @@ public with sharing class AgentErrorMonitorService {
     }
 
     List<String> parts = new List<String>();
-    String countDisplay = totalErrorCount > MAX_ERROR_DETAILS ? totalErrorCount + '+' : String.valueOf(totalErrorCount);
+
+    // If we hit the query limit, indicate there may be more
+    String countDisplay = totalErrorCount >= MAX_QUERY_RECORDS ? totalErrorCount + '+' : String.valueOf(totalErrorCount);
     parts.add(buildHeading(3, 'Error Details (showing ' + errors.size() + ' of ' + countDisplay + ')', null));
 
     List<String> headers = new List<String>{ 'Timestamp', 'Session ID', 'Message Type', 'Error Message', 'Record ID' };
@@ -237,14 +266,13 @@ public with sharing class AgentErrorMonitorService {
     return buildTableRow(cells, 'background-color: ' + rowColor + ';');
   }
 
-  public static String buildFooterSection(String jobId, String orgUrl) {
+  public static String buildFooterSection(JobContext jobContext) {
+    String orgUrl = getOrgUrl();
     List<String> parts = new List<String>();
     parts.add(buildParagraph('This is an automated notification from the Agent Error Monitor.', null));
 
-    if (String.isNotBlank(jobId)) {
-      String jobLink = String.isNotBlank(orgUrl)
-        ? '<a href="' + orgUrl + '/' + jobId + '" style="color: ' + COLOR_PRIMARY + ';">' + jobId + '</a>'
-        : jobId;
+    if (String.isNotBlank(jobContext.jobId)) {
+      String jobLink = buildJobLink(jobContext.jobId, orgUrl, jobContext.isScheduled);
       parts.add(buildParagraph('Job ID: ' + jobLink, null));
     }
 
@@ -254,14 +282,12 @@ public with sharing class AgentErrorMonitorService {
     );
   }
 
-  public static String buildEmailBody(List<ErrorRecord> errors, String jobId, Long durationSeconds, Integer totalErrorCount) {
-    String orgUrl = getOrgUrl();
-
+  public static String buildEmailBody(List<ErrorRecord> errors, Integer totalErrorCount, JobContext jobContext) {
     List<String> bodyParts = new List<String>();
     bodyParts.add(buildHeading(2, '⚠️ Agent Errors Detected', 'color: ' + COLOR_ERROR + ';'));
-    bodyParts.add(buildSummarySection(totalErrorCount, durationSeconds, jobId));
+    bodyParts.add(buildSummarySection(totalErrorCount, jobContext));
     bodyParts.add(buildErrorDetailsTable(errors, totalErrorCount));
-    bodyParts.add(buildFooterSection(jobId, orgUrl));
+    bodyParts.add(buildFooterSection(jobContext));
 
     return wrapInHtmlDocument(String.join(bodyParts, ''));
   }
@@ -294,6 +320,23 @@ public with sharing class AgentErrorMonitorService {
     } catch (Exception e) {
       return '';
     }
+  }
+
+  public static String getJobUrl(Boolean isScheduled) {
+    return isScheduled ? '/lightning/setup/ScheduledJobs/home' : '/lightning/setup/AsyncApexJobs/home';
+  }
+
+  public static String buildJobLink(String jobId, String orgUrl, Boolean isScheduled) {
+    if (String.isBlank(jobId)) {
+      return '';
+    }
+
+    if (String.isBlank(orgUrl)) {
+      return jobId;
+    }
+
+    String jobUrl = getJobUrl(isScheduled);
+    return '<a href="' + orgUrl + jobUrl + '" style="color: ' + COLOR_PRIMARY + ';">' + jobId + '</a>';
   }
 
   // ============================================================================
@@ -332,13 +375,13 @@ public with sharing class AgentErrorMonitorService {
       this(new DefaultEmailSender());
     }
 
-    public Boolean sendErrorNotification(List<ErrorRecord> errors, String recipientEmail, String jobId, Long durationSeconds) {
+    public Boolean sendErrorNotification(List<ErrorRecord> errors, String recipientEmail, JobContext jobContext) {
       if (errors.isEmpty()) {
         return false;
       }
 
       String subject = 'Agent Errors Detected - ' + DateTime.now().format('yyyy-MM-dd HH:mm:ss');
-      String htmlBody = buildEmailBody(errors, jobId, durationSeconds, errors.size());
+      String htmlBody = buildEmailBody(errors, errors.size(), jobContext);
 
       return emailSender.sendEmail(recipientEmail, subject, htmlBody);
     }
@@ -410,13 +453,11 @@ public with sharing class AgentErrorMonitorService {
 
   public class ProcessingResult {
     public Integer totalRecords { get; set; }
-    public Integer errorCount { get; set; }
     public List<ErrorRecord> errorRecords { get; set; }
     public Long durationMilliseconds { get; set; }
 
     public ProcessingResult() {
       this.totalRecords = 0;
-      this.errorCount = 0;
       this.errorRecords = new List<ErrorRecord>();
       this.durationMilliseconds = 0;
     }
@@ -442,33 +483,63 @@ public with sharing class AgentErrorMonitorService {
   public static void processRecords(List<sObject> records, ProcessingResult result) {
     for (sObject record : records) {
       result.totalRecords++;
-      result.errorCount++;
-
       ErrorRecord errorRec = new ErrorRecord(record);
-
-      if (result.errorRecords.size() < MAX_ERROR_DETAILS) {
         result.errorRecords.add(errorRec);
-      } else {
-        // Stop processing once we have enough error details
-        break;
-      }
     }
   }
 
   /**
-   * Send error notification with default duration (0 seconds)
+   * Send error notification with default duration (0 seconds) and not scheduled
    * Delegates to overloaded method with full parameters
    */
   public static Boolean sendErrorNotification(List<ErrorRecord> errors, String recipientEmail, String jobId) {
-    return sendErrorNotification(errors, recipientEmail, jobId, 0);
+    JobContext jobContext = new JobContext(jobId, 0, false, null);
+    return sendErrorNotification(errors, recipientEmail, jobContext);
   }
 
   /**
-   * Send error notification with execution duration
+   * Send error notification with execution duration and not scheduled
    */
   public static Boolean sendErrorNotification(List<ErrorRecord> errors, String recipientEmail, String jobId, Long durationSeconds) {
+    JobContext jobContext = new JobContext(jobId, durationSeconds, false, null);
+    return sendErrorNotification(errors, recipientEmail, jobContext);
+  }
+
+  /**
+   * Send error notification with execution duration and schedule status
+   */
+  public static Boolean sendErrorNotification(
+    List<ErrorRecord> errors,
+    String recipientEmail,
+    String jobId,
+    Long durationSeconds,
+    Boolean isScheduled
+  ) {
+    JobContext jobContext = new JobContext(jobId, durationSeconds, isScheduled, null);
+    return sendErrorNotification(errors, recipientEmail, jobContext);
+  }
+
+  /**
+   * Send error notification with full context including lookback hours
+   */
+  public static Boolean sendErrorNotification(
+    List<ErrorRecord> errors,
+    String recipientEmail,
+    String jobId,
+    Long durationSeconds,
+    Boolean isScheduled,
+    Integer lookbackHours
+  ) {
+    JobContext jobContext = new JobContext(jobId, durationSeconds, isScheduled, lookbackHours);
+    return sendErrorNotification(errors, recipientEmail, jobContext);
+  }
+
+  /**
+   * Send error notification with notification context
+   */
+  public static Boolean sendErrorNotification(List<ErrorRecord> errors, String recipientEmail, JobContext jobContext) {
     Notifier notifier = new Notifier();
-    return notifier.sendErrorNotification(errors, recipientEmail, jobId, durationSeconds);
+    return notifier.sendErrorNotification(errors, recipientEmail, jobContext);
   }
 
   /**

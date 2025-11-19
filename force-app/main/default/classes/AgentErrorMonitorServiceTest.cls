@@ -1,5 +1,9 @@
 @IsTest(SeeAllData=false)
 private class AgentErrorMonitorServiceTest {
+  // ============================================================================
+  // TEST DATA HELPERS
+  // ============================================================================
+
   private static AgentErrorMonitorService.ErrorRecord createMockErrorRecord() {
     return createMockErrorRecord('TEST123', 'Test error message', 'Success');
   }
@@ -22,6 +26,35 @@ private class AgentErrorMonitorServiceTest {
     }
     return errors;
   }
+
+  private static AgentErrorMonitorService.JobContext createJobContext(
+    String jobId,
+    Long durationSeconds,
+    Boolean isScheduled,
+    Integer lookbackHours
+  ) {
+    return new AgentErrorMonitorService.JobContext(jobId, durationSeconds, isScheduled, lookbackHours);
+  }
+
+  private static AgentErrorMonitorService.JobContext createManualJobContext(String jobId, Long durationSeconds) {
+    return createJobContext(jobId, durationSeconds, false, null);
+  }
+
+  private static AgentErrorMonitorService.JobContext createScheduledJobContext(String jobId, Long durationSeconds, Integer lookbackHours) {
+    return createJobContext(jobId, durationSeconds, true, lookbackHours);
+  }
+
+  private static void assertExceptionThrown(String methodName, Exception expectedException, String expectedMessage) {
+    Assert.fail('Should throw ' + expectedException.getTypeName() + ' for ' + methodName);
+  }
+
+  private static void assertExceptionMessage(Exception e, String expectedSubstring, String context) {
+    Assert.isTrue(e.getMessage().contains(expectedSubstring), context);
+  }
+
+  // ============================================================================
+  // TESTS
+  // ============================================================================
 
   @IsTest
   static void testSendErrorNotificationWithErrors() {
@@ -58,7 +91,7 @@ private class AgentErrorMonitorServiceTest {
     errors.add(error);
 
     Test.startTest();
-    String body = AgentErrorMonitorService.buildEmailBody(errors, '707000000000001', 45, 1);
+    String body = AgentErrorMonitorService.buildEmailBody(errors, 1, createManualJobContext('707000000000001', 45));
     Test.stopTest();
 
     Assert.isTrue(String.isNotBlank(body), 'Email body should not be blank');
@@ -186,16 +219,10 @@ private class AgentErrorMonitorServiceTest {
   @IsTest
   static void testBuildEmailBodyNoJobId() {
     List<AgentErrorMonitorService.ErrorRecord> errors = new List<AgentErrorMonitorService.ErrorRecord>();
-    AgentErrorMonitorService.ErrorRecord error = new AgentErrorMonitorService.ErrorRecord();
-    error.recordId = 'TEST789';
-    error.errorMessage = 'Test error';
-    error.occurredAt = DateTime.now();
-    error.sessionId = 'SESSION123';
-    error.messageType = 'Error';
-    errors.add(error);
+    errors.add(createMockErrorRecord('TEST789', 'Test error', 'Error'));
 
     Test.startTest();
-    String body = AgentErrorMonitorService.buildEmailBody(errors, null, 0, 1);
+    String body = AgentErrorMonitorService.buildEmailBody(errors, 1, createManualJobContext(null, 0));
     Test.stopTest();
 
     Assert.isTrue(String.isNotBlank(body), 'Email body should not be blank');
@@ -206,15 +233,10 @@ private class AgentErrorMonitorServiceTest {
   static void testBuildEmailBodyNullValues() {
     List<AgentErrorMonitorService.ErrorRecord> errors = new List<AgentErrorMonitorService.ErrorRecord>();
     AgentErrorMonitorService.ErrorRecord error = new AgentErrorMonitorService.ErrorRecord();
-    error.recordId = null;
-    error.errorMessage = null;
-    error.occurredAt = null;
-    error.sessionId = null;
-    error.messageType = null;
     errors.add(error);
 
     Test.startTest();
-    String body = AgentErrorMonitorService.buildEmailBody(errors, 'JOB123', 30, 1);
+    String body = AgentErrorMonitorService.buildEmailBody(errors, 1, createManualJobContext('JOB123', 30));
     Test.stopTest();
 
     Assert.isTrue(String.isNotBlank(body), 'Email body should handle null values');
@@ -226,7 +248,7 @@ private class AgentErrorMonitorServiceTest {
     List<AgentErrorMonitorService.ErrorRecord> errors = createMockErrorRecords(5);
 
     Test.startTest();
-    String body = AgentErrorMonitorService.buildEmailBody(errors, '707000000000004', 60, 5);
+    String body = AgentErrorMonitorService.buildEmailBody(errors, 5, createManualJobContext('707000000000004', 60));
     Test.stopTest();
 
     Assert.isTrue(String.isNotBlank(body), 'Email body should handle multiple errors');
@@ -240,7 +262,7 @@ private class AgentErrorMonitorServiceTest {
     List<AgentErrorMonitorService.ErrorRecord> errors = new List<AgentErrorMonitorService.ErrorRecord>();
 
     Test.startTest();
-    String body = AgentErrorMonitorService.buildEmailBody(errors, '707000000000005', 45, 0);
+    String body = AgentErrorMonitorService.buildEmailBody(errors, 0, createManualJobContext('707000000000005', 45));
     Test.stopTest();
 
     Assert.isTrue(String.isNotBlank(body), 'Email body should be generated even with empty list');
@@ -262,15 +284,126 @@ private class AgentErrorMonitorServiceTest {
   @IsTest
   static void testSendErrorNotificationException() {
     List<AgentErrorMonitorService.ErrorRecord> errors = new List<AgentErrorMonitorService.ErrorRecord>();
-    AgentErrorMonitorService.ErrorRecord error = new AgentErrorMonitorService.ErrorRecord();
-    error.recordId = 'TEST999';
-    error.errorMessage = 'Exception test';
-    errors.add(error);
+    errors.add(createMockErrorRecord('TEST999', 'Exception test', 'Error'));
 
     Test.startTest();
     Boolean sent = AgentErrorMonitorService.sendErrorNotification(errors, 'invalid-email-format', null, 0);
     Test.stopTest();
 
     Assert.isNotNull(sent, 'Should return boolean result');
+  }
+
+  @IsTest
+  static void testBuildFieldListNull() {
+    Test.startTest();
+    try {
+      AgentErrorMonitorService.buildFieldList(null);
+      Assert.fail('Should throw IllegalArgumentException for null fields');
+    } catch (IllegalArgumentException e) {
+      assertExceptionMessage(e, 'cannot be null or empty', 'Should validate null fields');
+    }
+    Test.stopTest();
+  }
+
+  @IsTest
+  static void testBuildFieldListEmpty() {
+    Test.startTest();
+    try {
+      AgentErrorMonitorService.buildFieldList(new List<String>());
+      Assert.fail('Should throw IllegalArgumentException for empty fields');
+    } catch (IllegalArgumentException e) {
+      assertExceptionMessage(e, 'cannot be null or empty', 'Should validate empty fields');
+    }
+    Test.stopTest();
+  }
+
+  @IsTest
+  static void testBuildEmailBodyScheduledWithLookback() {
+    List<AgentErrorMonitorService.ErrorRecord> errors = createMockErrorRecords(3);
+
+    Test.startTest();
+    String body = AgentErrorMonitorService.buildEmailBody(errors, 3, createScheduledJobContext('707000000000006', 45, 24));
+    Test.stopTest();
+
+    Assert.isTrue(String.isNotBlank(body), 'Email body should not be blank');
+    Assert.isTrue(body.contains('Scheduled'), 'Should show Scheduled job type');
+    Assert.isTrue(body.contains('24 hours') || body.contains('Lookback'), 'Should show lookback period');
+  }
+
+  @IsTest
+  static void testBuildEmailBodyScheduledWithSingleHour() {
+    List<AgentErrorMonitorService.ErrorRecord> errors = createMockErrorRecords(1);
+
+    Test.startTest();
+    String body = AgentErrorMonitorService.buildEmailBody(errors, 1, createScheduledJobContext('707000000000007', 30, 1));
+    Test.stopTest();
+
+    Assert.isTrue(String.isNotBlank(body), 'Email body should not be blank');
+    Assert.isTrue(body.contains('1 hour') && !body.contains('1 hours'), 'Should show singular hour');
+  }
+
+  @IsTest
+  static void testGetOrgUrl() {
+    Test.startTest();
+    String orgUrl = AgentErrorMonitorService.getOrgUrl();
+    Test.stopTest();
+
+    Assert.isNotNull(orgUrl, 'Org URL should not be null');
+  }
+
+  @IsTest
+  static void testGetJobUrlScheduled() {
+    Test.startTest();
+    String jobUrl = AgentErrorMonitorService.getJobUrl(true);
+    Test.stopTest();
+
+    Assert.isTrue(jobUrl.contains('ScheduledJobs'), 'Should return Scheduled Jobs URL');
+  }
+
+  @IsTest
+  static void testGetJobUrlManual() {
+    Test.startTest();
+    String jobUrl = AgentErrorMonitorService.getJobUrl(false);
+    Test.stopTest();
+
+    Assert.isTrue(jobUrl.contains('AsyncApexJobs'), 'Should return Async Apex Jobs URL');
+  }
+
+  @IsTest
+  static void testBuildJobLinkScheduled() {
+    Test.startTest();
+    String jobLink = AgentErrorMonitorService.buildJobLink('707000000000008', 'https://test.salesforce.com', true);
+    Test.stopTest();
+
+    Assert.isTrue(jobLink.contains('ScheduledJobs'), 'Should link to Scheduled Jobs');
+    Assert.isTrue(jobLink.contains('707000000000008'), 'Should contain job ID');
+  }
+
+  @IsTest
+  static void testBuildJobLinkManual() {
+    Test.startTest();
+    String jobLink = AgentErrorMonitorService.buildJobLink('707000000000009', 'https://test.salesforce.com', false);
+    Test.stopTest();
+
+    Assert.isTrue(jobLink.contains('AsyncApexJobs'), 'Should link to Async Apex Jobs');
+    Assert.isTrue(jobLink.contains('707000000000009'), 'Should contain job ID');
+  }
+
+  @IsTest
+  static void testBuildJobLinkBlankJobId() {
+    Test.startTest();
+    String jobLink = AgentErrorMonitorService.buildJobLink('', 'https://test.salesforce.com', false);
+    Test.stopTest();
+
+    Assert.areEqual('', jobLink, 'Should return empty string for blank job ID');
+  }
+
+  @IsTest
+  static void testBuildJobLinkBlankOrgUrl() {
+    Test.startTest();
+    String jobLink = AgentErrorMonitorService.buildJobLink('707000000000010', '', false);
+    Test.stopTest();
+
+    Assert.areEqual('707000000000010', jobLink, 'Should return plain job ID when org URL is blank');
   }
 }

@@ -12,12 +12,18 @@ public with sharing class AgentErrorMonitorBatch implements Database.Batchable<s
   private DateTime startTime;
   @TestVisible
   private AgentErrorMonitorService.ProcessingResult result;
+  @TestVisible
+  private Boolean isScheduled;
 
   public AgentErrorMonitorBatch(String recipientEmail) {
-    this(recipientEmail, AgentErrorMonitorService.DEFAULT_LOOKBACK_HOURS);
+    this(recipientEmail, AgentErrorMonitorService.DEFAULT_LOOKBACK_HOURS, false);
   }
 
   public AgentErrorMonitorBatch(String recipientEmail, Integer lookbackHours) {
+    this(recipientEmail, lookbackHours, false);
+  }
+
+  public AgentErrorMonitorBatch(String recipientEmail, Integer lookbackHours, Boolean isScheduled) {
     AgentErrorMonitorService.validateEmail(recipientEmail);
     AgentErrorMonitorService.validateHoursBack(lookbackHours);
 
@@ -25,6 +31,7 @@ public with sharing class AgentErrorMonitorBatch implements Database.Batchable<s
     this.lookbackHours = lookbackHours;
     this.startTime = DateTime.now();
     this.result = new AgentErrorMonitorService.ProcessingResult();
+    this.isScheduled = isScheduled;
   }
 
   public Iterable<sObject> start(Database.BatchableContext bc) {
@@ -40,8 +47,8 @@ public with sharing class AgentErrorMonitorBatch implements Database.Batchable<s
     result.durationMilliseconds = endTime.getTime() - startTime.getTime();
     Long durationSeconds = result.durationMilliseconds / 1000;
 
-    if (result.errorCount > 0) {
-      AgentErrorMonitorService.sendErrorNotification(result.errorRecords, recipientEmail, bc.getJobId(), durationSeconds);
+    if (result.totalRecords > 0) {
+      AgentErrorMonitorService.sendErrorNotification(result.errorRecords, recipientEmail, bc.getJobId(), durationSeconds, isScheduled, lookbackHours);
     }
   }
 }
