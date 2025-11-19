@@ -1,0 +1,289 @@
+---
+globs: changelog/**
+alwaysApply: false
+---
+## Critical Rules
+
+### Version File Naming
+- ✅ **ALWAYS use zero-padded version numbers**: `v1.XX.YY.md` (e.g., `v1.03.00.md` for v1.3.0)
+- ✅ Use two digits for each version component (major.minor.patch)
+- ❌ **NEVER use unpadded versions**: `v1.3.0.md` will break sorting at v1.10.0+
+- ✅ Format: `vMAJOR.MINOR.PATCH.md` where each is zero-padded to 2 digits
+- ✅ Examples: `v1.00.00.md`, `v1.10.00.md`, `v2.05.03.md`
+
+### Why Zero-Padding?
+Without padding, file systems sort incorrectly:
+```
+❌ BAD: v1.1.0.md, v1.10.0.md, v1.2.0.md (v1.10 appears before v1.2!)
+✅ GOOD: v1.01.00.md, v1.02.00.md, v1.10.00.md (correct order)
+```
+
+---
+
+## Release Note Format
+
+### Required Sections (in order)
+1. **Header**
+   - Version number (e.g., `# Release Notes - v1.2.0`)
+   - Release date
+   - Release type (Major/Minor/Patch - Description)
+
+2. **Overview**
+   - High-level summary (2-3 sentences)
+   - Key highlights
+
+3. **Added** (if applicable)
+   - New features and capabilities
+   - Use subsections for organization
+
+4. **Changed** (if applicable)
+   - Modifications to existing features
+   - Performance improvements
+
+5. **Removed** (if applicable)
+   - Deprecated or removed features
+
+6. **Fixed** (if applicable)
+   - Bug fixes and corrections
+
+### Optional Sections
+- **Improved** - Enhancements to existing features (if not covered in Changed)
+
+---
+
+## Creating a New Release
+
+### Step 1: Create Version File
+```bash
+# Copy latest version as template
+cp changelog/v1.02.00.md changelog/v1.XX.YY.md
+
+# Example: For v1.3.0
+cp changelog/v1.02.00.md changelog/v1.03.00.md
+```
+
+### Step 2: Update Content
+- [ ] Change version number and date in header
+- [ ] Write overview summary
+- [ ] Document all changes in appropriate sections
+- [ ] Include code examples
+- [ ] Write migration guide
+- [ ] List all contributors
+- [ ] Verify all links work
+
+### Step 3: Update Main CHANGELOG.md
+Add new entry to root `CHANGELOG.md`:
+```markdown
+### [X.Y.Z] - YYYY-MM-DD
+**Release Type**
+
+Brief description...
+
+**Key Changes:**
+- Change 1
+- Change 2
+
+[📄 View Full Release Notes](./changelog/vX.YY.ZZ.md)
+```
+
+Update Quick Summary table:
+```markdown
+| Version | Date | Type | Highlights |
+|---------|------|------|------------|
+| [X.Y.Z](./changelog/vX.YY.ZZ.md) | YYYY-MM-DD | Type | Brief highlights |
+```
+
+### Step 4: Review Checklist
+- [ ] All applicable sections completed (Added/Changed/Removed/Fixed)
+- [ ] Descriptions are clear and specific
+- [ ] Zero-padded filename used
+- [ ] Main CHANGELOG.md updated
+- [ ] No external links
+- [ ] No technical details (file lists, line counts)
+- [ ] No usage examples
+- [ ] No migration guides
+- [ ] Focused on WHAT changed, not HOW
+
+---
+
+## Version Numbering
+
+Follow [Semantic Versioning](https://semver.org/):
+
+- **MAJOR** (X.0.0) - Incompatible API changes, breaking changes
+- **MINOR** (0.X.0) - Backward-compatible new functionality
+- **PATCH** (0.0.X) - Backward-compatible bug fixes
+
+### Examples
+- `v1.00.00.md` → v1.0.0 (Initial release)
+- `v1.01.00.md` → v1.1.0 (New feature, backward compatible)
+- `v1.01.01.md` → v1.1.1 (Bug fix)
+- `v2.00.00.md` → v2.0.0 (Breaking changes)
+
+---
+
+## Writing Guidelines
+
+### Be Specific
+❌ BAD: "Improved performance"
+✅ GOOD: "Reduced MAX_QUERY_RECORDS from 200 to 100 for 30% faster queries"
+
+### Use Active Voice
+❌ BAD: "The email template was updated"
+✅ GOOD: "Updated email template to show job context"
+
+### Include Context
+❌ BAD: "Added JobContext class"
+✅ GOOD: "Added JobContext class to encapsulate job metadata (SOLID Single Responsibility Principle)"
+
+### Provide Examples
+Always include code examples for:
+- New features
+- Changed APIs
+- Migration steps
+- Configuration changes
+
+### Link to Relevant Code
+When referencing specific changes, include file paths:
+```markdown
+- Enhanced `AgentErrorMonitorService.cls` with JobContext
+- Updated `AgentErrorMonitorBatch.cls` to pass job metadata
+```
+
+---
+
+## Main CHANGELOG.md Structure
+
+The root `CHANGELOG.md` serves as an index:
+
+```markdown
+# Changelog
+
+Introduction and format info...
+
+## Release Index
+
+### [X.Y.Z] - YYYY-MM-DD
+**Type**
+Brief description
+Key changes list
+[Link to full notes]
+
+---
+
+## Quick Summary
+
+| Version | Date | Type | Highlights |
+|---------|------|------|------------|
+| Links to detailed notes...
+
+---
+
+## Upgrade Path
+
+Migration information...
+```
+
+---
+
+## Common Mistakes to Avoid
+
+❌ **Don't use unpadded version numbers** in filenames
+❌ **Don't forget to update** main CHANGELOG.md
+❌ **Don't use vague descriptions** - be specific
+❌ **Don't add external links** - they break over time
+❌ **Don't add implementation details** - focus on what changed, not how
+❌ **Don't add usage examples** - that's for documentation
+❌ **Don't add migration guides** - deploy instructions are standard
+❌ **Don't add technical statistics** - focus on functional changes
+
+---
+
+## AI Assistant Guidelines
+
+When creating or updating changelog files:
+
+1. **Always use zero-padded filenames** (v1.XX.YY.md)
+2. **Follow the section order**: Overview → Added → Changed → Removed → Fixed → Improved (optional)
+3. **Only include applicable sections** - skip sections with no changes
+4. **Write clear, specific descriptions** - explain WHAT changed and WHY
+5. **Update both files**:
+   - New version file in `changelog/`
+   - Root `CHANGELOG.md`
+6. **Verify semantic versioning** is correct
+7. **Keep it concise and focused** - changelogs are historical records
+8. **NO technical implementation details** - no file lists, line counts, code samples
+9. **NO usage examples** - that belongs in documentation/README
+10. **NO migration guides** - deployment process is standard
+11. **NO external links** - they become outdated
+12. **NO future plans** - changelogs document the past, not the future
+
+---
+
+## Simplified Template
+
+```markdown
+# Release Notes - vX.Y.Z
+
+**Release Date:** Month DD, YYYY  
+**Type:** Major/Minor/Patch Release - Brief Description
+
+---
+
+## Overview
+
+2-3 sentence summary of what this release accomplishes and why it matters.
+
+---
+
+## Added
+
+### Feature Name
+- What was added
+- Why it was added
+- Key benefits
+
+---
+
+## Changed
+
+### What Changed
+- What was modified
+- Why it was changed
+- Impact on users
+
+---
+
+## Removed
+
+### What Was Removed
+- What was removed
+- Why it was removed
+
+---
+
+## Fixed
+
+### What Was Fixed
+- What bug was fixed
+- Impact of the fix
+
+---
+
+## Improved
+
+### What Was Improved
+- What was enhanced
+- Benefits of the improvement
+```
+
+---
+
+## Philosophy
+
+Changelogs should be:
+- **Concise** - Focus on what matters to users
+- **Clear** - Anyone can understand what changed
+- **Historical** - Document what happened, not what might happen
+- **User-focused** - Explain impact, not implementation
+- **Timeless** - No links or references that will break
