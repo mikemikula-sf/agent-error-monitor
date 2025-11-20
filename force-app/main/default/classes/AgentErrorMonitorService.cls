@@ -1,7 +1,7 @@
 /**
- * Service class for Agent Error Monitoring
- * Handles error detection, query building, HTML generation, and email notifications
- * Uses inner classes to minimize Apex class count while maintaining separation of concerns
+ * @description Service class for Agent Error Monitoring.
+ * Handles error detection, query building, HTML generation, and email notifications.
+ * Uses inner classes to minimize Apex class count while maintaining separation of concerns.
  */
 public with sharing class AgentErrorMonitorService {
   // ============================================================================
@@ -49,12 +49,26 @@ public with sharing class AgentErrorMonitorService {
   // CONTEXT OBJECTS
   // ============================================================================
 
+  /**
+   * @description Context object containing job execution information
+   */
   public class JobContext {
+    /** @description Salesforce job ID */
     public String jobId { get; set; }
+    /** @description Execution duration in seconds */
     public Long durationSeconds { get; set; }
+    /** @description Whether the job was scheduled or run manually */
     public Boolean isScheduled { get; set; }
+    /** @description Number of hours looked back for errors */
     public Integer lookbackHours { get; set; }
 
+    /**
+     * @description Constructor for JobContext
+     * @param jobId Salesforce job ID
+     * @param durationSeconds Execution duration in seconds
+     * @param isScheduled Whether the job was scheduled or run manually
+     * @param lookbackHours Number of hours looked back for errors
+     */
     public JobContext(String jobId, Long durationSeconds, Boolean isScheduled, Integer lookbackHours) {
       this.jobId = jobId;
       this.durationSeconds = durationSeconds;
@@ -67,18 +81,32 @@ public with sharing class AgentErrorMonitorService {
   // VALIDATION
   // ============================================================================
 
+  /**
+   * @description Validates lookback hours parameter
+   * @param hoursBack Number of hours to validate
+   */
   public static void validateHoursBack(Integer hoursBack) {
     if (hoursBack == null || hoursBack < MIN_HOURS || hoursBack > MAX_HOURS) {
       throw new IllegalArgumentException('hoursBack must be between ' + MIN_HOURS + ' and ' + MAX_HOURS + ' (30 days)');
     }
   }
 
+  /**
+   * @description Validates email address parameter
+   * @param email Email address to validate
+   */
   public static void validateEmail(String email) {
     if (String.isBlank(email)) {
       throw new IllegalArgumentException('Recipient email is required');
     }
   }
 
+  /**
+   * @description Validates batch size parameter
+   * @param batchSize Batch size to validate
+   * @param minSize Minimum allowed batch size
+   * @param maxSize Maximum allowed batch size
+   */
   public static void validateBatchSize(Integer batchSize, Integer minSize, Integer maxSize) {
     if (batchSize == null || batchSize < minSize || batchSize > maxSize) {
       throw new IllegalArgumentException('Batch size must be between ' + minSize + ' and ' + maxSize);
@@ -86,17 +114,27 @@ public with sharing class AgentErrorMonitorService {
   }
 
   // ============================================================================
-  // QUERY BUILDING
+  // QUERY BUILDING (Private - internal helpers)
   // ============================================================================
 
-  public static String buildFieldList(List<String> fields) {
+  /**
+   * @description Builds a comma-separated field list for SOQL queries
+   * @param fields List of field API names to include in the query
+   * @return Comma-separated string of field names
+   */
+  @TestVisible
+  private static String buildFieldList(List<String> fields) {
     if (fields == null || fields.isEmpty()) {
       throw new IllegalArgumentException('Fields list cannot be null or empty');
     }
     return String.join(fields, ', ');
   }
 
-  public static String buildErrorPatternWhereClause() {
+  /**
+   * @description Builds WHERE clause to match error patterns in AI Agent messages
+   * @return WHERE clause string with OR conditions for various error patterns
+   */
+  private static String buildErrorPatternWhereClause() {
     List<String> errorPatterns = new List<String>{ 'error id:', 'error ID:', 'Error ID:', 'ERROR ID:' };
     List<String> conditions = new List<String>();
     for (String pattern : errorPatterns) {
@@ -106,7 +144,12 @@ public with sharing class AgentErrorMonitorService {
     return '(' + String.join(conditions, ' OR ') + ')';
   }
 
-  public static String buildErrorRecordsQuery(DateTime cutoffTime) {
+  /**
+   * @description Builds complete SOQL query for error records
+   * @param cutoffTime DateTime threshold - only records after this time are included
+   * @return Complete SOQL query string ready for execution
+   */
+  private static String buildErrorRecordsQuery(DateTime cutoffTime) {
     List<String> fields = new List<String>{ 'Id', AI_AGENT_CONTENT_FIELD, AI_AGENT_TYPE_FIELD, AI_AGENT_TIMESTAMP_FIELD, AI_AGENT_SESSION_FIELD };
 
     return 'SELECT ' +
@@ -124,40 +167,84 @@ public with sharing class AgentErrorMonitorService {
   }
 
   // ============================================================================
-  // HTML GENERATION
+  // HTML GENERATION (Private - internal helpers)
   // Note: Inline styles are required for email client compatibility
   // ============================================================================
 
-  public static String wrapInHtmlDocument(String bodyContent) {
+  /**
+   * @description Wraps content in complete HTML document structure
+   * @param bodyContent HTML content to wrap
+   * @return Complete HTML document with body styling
+   */
+  private static String wrapInHtmlDocument(String bodyContent) {
     return '<html><body style="font-family: Arial, sans-serif;">' + bodyContent + '</body></html>';
   }
 
-  public static String buildHeading(Integer level, String text, String style) {
+  /**
+   * @description Builds HTML heading element with optional inline styles
+   * @param level Heading level (1-6)
+   * @param text Heading text content
+   * @param style Optional inline CSS styles
+   * @return HTML heading element
+   */
+  private static String buildHeading(Integer level, String text, String style) {
     String styleAttr = String.isNotBlank(style) ? ' style="' + style + '"' : '';
     return '<h' + level + styleAttr + '>' + text + '</h' + level + '>';
   }
 
-  public static String buildParagraph(String text, String style) {
+  /**
+   * @description Builds HTML paragraph element with optional inline styles
+   * @param text Paragraph text content
+   * @param style Optional inline CSS styles
+   * @return HTML paragraph element
+   */
+  private static String buildParagraph(String text, String style) {
     String styleAttr = String.isNotBlank(style) ? ' style="' + style + '"' : '';
     return '<p' + styleAttr + '>' + text + '</p>';
   }
 
-  public static String buildDiv(String content, String style) {
+  /**
+   * @description Builds HTML div element with optional inline styles
+   * @param content Div content
+   * @param style Optional inline CSS styles
+   * @return HTML div element
+   */
+  private static String buildDiv(String content, String style) {
     String styleAttr = String.isNotBlank(style) ? ' style="' + style + '"' : '';
     return '<div' + styleAttr + '>' + content + '</div>';
   }
 
-  public static String buildTableCell(String content, String style, Boolean escape) {
+  /**
+   * @description Builds HTML table cell with optional HTML escaping
+   * @param content Cell content
+   * @param style Inline CSS styles for the cell
+   * @param escape Whether to HTML-escape the content
+   * @return HTML table cell element
+   */
+  private static String buildTableCell(String content, String style, Boolean escape) {
     String safeContent = escape ? escapeHtml(content) : content;
     return '<td style="' + style + '">' + safeContent + '</td>';
   }
 
-  public static String buildTableRow(List<String> cells, String rowStyle) {
+  /**
+   * @description Builds HTML table row from list of cells
+   * @param cells List of HTML table cell strings
+   * @param rowStyle Optional inline CSS styles for the row
+   * @return HTML table row element
+   */
+  private static String buildTableRow(List<String> cells, String rowStyle) {
     String styleAttr = String.isNotBlank(rowStyle) ? ' style="' + rowStyle + '"' : '';
     return '<tr' + styleAttr + '>' + String.join(cells, '') + '</tr>';
   }
 
-  public static String buildTable(List<String> headers, List<String> rows, String tableStyle) {
+  /**
+   * @description Builds complete HTML table with headers and rows
+   * @param headers List of header text strings
+   * @param rows List of HTML row strings
+   * @param tableStyle Inline CSS styles for the table
+   * @return Complete HTML table element
+   */
+  private static String buildTable(List<String> headers, List<String> rows, String tableStyle) {
     List<String> parts = new List<String>();
     parts.add('<table style="' + tableStyle + '">');
 
@@ -179,12 +266,24 @@ public with sharing class AgentErrorMonitorService {
     return String.join(parts, '');
   }
 
-  public static String buildPre(String content, String style) {
+  /**
+   * @description Builds HTML pre element for preformatted text
+   * @param content Preformatted text content
+   * @param style Optional inline CSS styles
+   * @return HTML pre element
+   */
+  private static String buildPre(String content, String style) {
     String styleAttr = String.isNotBlank(style) ? ' style="' + style + '"' : '';
     return '<pre' + styleAttr + '>' + content + '</pre>';
   }
 
-  public static String buildSummarySection(Integer totalErrorCount, JobContext jobContext) {
+  /**
+   * @description Builds summary section with job execution details
+   * @param totalErrorCount Total number of errors found
+   * @param jobContext Job execution context with metadata
+   * @return HTML div containing summary table
+   */
+  private static String buildSummarySection(Integer totalErrorCount, JobContext jobContext) {
     String orgUrl = getOrgUrl();
     List<String> tableRows = new List<String>();
 
@@ -214,6 +313,13 @@ public with sharing class AgentErrorMonitorService {
     return buildDiv(buildHeading(3, 'Summary', 'margin-top: 0;') + table, CONTAINER_STYLE + ' margin-bottom: 20px;');
   }
 
+  /**
+   * @description Builds a single row for the summary table
+   * @param label Row label text
+   * @param value Row value text (may contain HTML)
+   * @param valueStyle Optional inline CSS styles for the value cell
+   * @return HTML table row with label and value cells
+   */
   private static String buildSummaryRow(String label, String value, String valueStyle) {
     List<String> cells = new List<String>();
     cells.add(buildTableCell(label, 'padding: 5px; font-weight: bold;', false));
@@ -227,7 +333,13 @@ public with sharing class AgentErrorMonitorService {
     return buildTableRow(cells, null);
   }
 
-  public static String buildErrorDetailsTable(List<ErrorRecord> errors, Integer totalErrorCount) {
+  /**
+   * @description Builds error details table with all error records
+   * @param errors List of error records to display
+   * @param totalErrorCount Total count (may exceed list size if query was limited)
+   * @return HTML section with error details table
+   */
+  private static String buildErrorDetailsTable(List<ErrorRecord> errors, Integer totalErrorCount) {
     if (errors.isEmpty()) {
       return '';
     }
@@ -252,6 +364,12 @@ public with sharing class AgentErrorMonitorService {
     return String.join(parts, '');
   }
 
+  /**
+   * @description Builds a single table row for an error record
+   * @param error Error record to display
+   * @param rowNum Row number for alternating row colors
+   * @return HTML table row with error details
+   */
   private static String buildErrorTableRow(ErrorRecord error, Integer rowNum) {
     List<String> cells = new List<String>();
     String rowColor = Math.mod(rowNum, 2) == 0 ? COLOR_WHITE : COLOR_BACKGROUND_ALT;
@@ -266,7 +384,12 @@ public with sharing class AgentErrorMonitorService {
     return buildTableRow(cells, 'background-color: ' + rowColor + ';');
   }
 
-  public static String buildFooterSection(JobContext jobContext) {
+  /**
+   * @description Builds email footer with job metadata and links
+   * @param jobContext Job execution context
+   * @return HTML div containing footer content
+   */
+  private static String buildFooterSection(JobContext jobContext) {
     String orgUrl = getOrgUrl();
     List<String> parts = new List<String>();
     parts.add(buildParagraph('This is an automated notification from the Agent Error Monitor.', null));
@@ -282,7 +405,15 @@ public with sharing class AgentErrorMonitorService {
     );
   }
 
-  public static String buildEmailBody(List<ErrorRecord> errors, Integer totalErrorCount, JobContext jobContext) {
+  /**
+   * @description Builds complete email body with all sections
+   * @param errors List of error records to display
+   * @param totalErrorCount Total error count
+   * @param jobContext Job execution context
+   * @return Complete HTML email body
+   */
+  @TestVisible
+  private static String buildEmailBody(List<ErrorRecord> errors, Integer totalErrorCount, JobContext jobContext) {
     List<String> bodyParts = new List<String>();
     bodyParts.add(buildHeading(2, '⚠️ Agent Errors Detected', 'color: ' + COLOR_ERROR + ';'));
     bodyParts.add(buildSummarySection(totalErrorCount, jobContext));
@@ -292,7 +423,12 @@ public with sharing class AgentErrorMonitorService {
     return wrapInHtmlDocument(String.join(bodyParts, ''));
   }
 
-  public static String buildSchedulerErrorEmailBody(Exception e) {
+  /**
+   * @description Builds email body for scheduler error notifications
+   * @param e Exception that occurred during scheduling
+   * @return Complete HTML email body for error notification
+   */
+  private static String buildSchedulerErrorEmailBody(Exception e) {
     List<String> parts = new List<String>();
     parts.add(buildHeading(2, '⚠️ Scheduler Error', 'color: ' + COLOR_ERROR + ';'));
     parts.add(buildParagraph('An error occurred while starting the Agent Error Monitor batch job.', null));
@@ -314,7 +450,12 @@ public with sharing class AgentErrorMonitorService {
     return wrapInHtmlDocument(String.join(parts, ''));
   }
 
-  public static String getOrgUrl() {
+  /**
+   * @description Gets the current org's base URL
+   * @return Org domain URL or empty string if unavailable
+   */
+  @TestVisible
+  private static String getOrgUrl() {
     try {
       return URL.getOrgDomainUrl().toExternalForm();
     } catch (Exception e) {
@@ -322,11 +463,25 @@ public with sharing class AgentErrorMonitorService {
     }
   }
 
-  public static String getJobUrl(Boolean isScheduled) {
+  /**
+   * @description Gets the Lightning setup URL for job monitoring
+   * @param isScheduled Whether this is a scheduled job (vs batch job)
+   * @return Lightning setup URL path
+   */
+  @TestVisible
+  private static String getJobUrl(Boolean isScheduled) {
     return isScheduled ? '/lightning/setup/ScheduledJobs/home' : '/lightning/setup/AsyncApexJobs/home';
   }
 
-  public static String buildJobLink(String jobId, String orgUrl, Boolean isScheduled) {
+  /**
+   * @description Builds HTML link to job monitoring page
+   * @param jobId Salesforce job ID
+   * @param orgUrl Organization base URL
+   * @param isScheduled Whether this is a scheduled job
+   * @return HTML anchor tag with job link or plain job ID if URL unavailable
+   */
+  @TestVisible
+  private static String buildJobLink(String jobId, String orgUrl, Boolean isScheduled) {
     if (String.isBlank(jobId)) {
       return '';
     }
@@ -343,11 +498,31 @@ public with sharing class AgentErrorMonitorService {
   // EMAIL NOTIFICATION
   // ============================================================================
 
+  /**
+   * @description Interface for email sending to allow dependency injection for testing
+   */
   public interface IEmailSender {
+    /**
+     * @description Sends an email
+     * @param recipientEmail Email address to send to
+     * @param subject Email subject
+     * @param htmlBody HTML body content
+     * @return True if email sent successfully
+     */
     Boolean sendEmail(String recipientEmail, String subject, String htmlBody);
   }
 
+  /**
+   * @description Default implementation of IEmailSender using Salesforce Messaging API
+   */
   public class DefaultEmailSender implements IEmailSender {
+    /**
+     * @description Sends an email using Salesforce Messaging API
+     * @param recipientEmail Email address to send to
+     * @param subject Email subject
+     * @param htmlBody HTML body content
+     * @return True if email sent successfully
+     */
     public Boolean sendEmail(String recipientEmail, String subject, String htmlBody) {
       try {
         Messaging.SingleEmailMessage email = new Messaging.SingleEmailMessage();
@@ -364,17 +539,34 @@ public with sharing class AgentErrorMonitorService {
     }
   }
 
+  /**
+   * @description Handles sending error notifications via email
+   */
   public class Notifier {
     private IEmailSender emailSender;
 
+    /**
+     * @description Constructor with custom email sender (for testing)
+     * @param emailSender Custom email sender implementation
+     */
     public Notifier(IEmailSender emailSender) {
       this.emailSender = emailSender;
     }
 
+    /**
+     * @description Constructor with default email sender
+     */
     public Notifier() {
       this(new DefaultEmailSender());
     }
 
+    /**
+     * @description Sends error notification email
+     * @param errors List of error records to include in notification
+     * @param recipientEmail Email address to send to
+     * @param jobContext Job execution context
+     * @return True if email sent successfully
+     */
     public Boolean sendErrorNotification(List<ErrorRecord> errors, String recipientEmail, JobContext jobContext) {
       if (errors.isEmpty()) {
         return false;
@@ -386,6 +578,11 @@ public with sharing class AgentErrorMonitorService {
       return emailSender.sendEmail(recipientEmail, subject, htmlBody);
     }
 
+    /**
+     * @description Sends scheduler error notification email
+     * @param e Exception that occurred
+     * @param recipientEmail Email address to send to
+     */
     public void sendSchedulerErrorNotification(Exception e, String recipientEmail) {
       String subject = 'Agent Error Monitor Scheduler Error - ' + DateTime.now().format('yyyy-MM-dd HH:mm:ss');
       String htmlBody = buildSchedulerErrorEmailBody(e);
@@ -395,27 +592,52 @@ public with sharing class AgentErrorMonitorService {
   }
 
   // ============================================================================
-  // UTILITY METHODS
+  // UTILITY METHODS (Public for logging, Private for internal helpers)
   // ============================================================================
 
+  /**
+   * @description Logs exception details for debugging
+   * @param e Exception to log
+   */
   public static void logException(Exception e) {
-    System.debug(LoggingLevel.ERROR, 'Exception Type: ' + e.getTypeName());
-    System.debug(LoggingLevel.ERROR, 'Exception Message: ' + e.getMessage());
-    System.debug(LoggingLevel.ERROR, 'Stack Trace: ' + e.getStackTraceString());
+    // Log exception details for debugging
+    // Note: In production, consider using a logging framework or Platform Events
+    System.debug(
+      LoggingLevel.ERROR,
+      'Agent Error Monitor Exception - Type: ' + e.getTypeName() + ', Message: ' + e.getMessage() + ', Stack: ' + e.getStackTraceString()
+    );
   }
 
-  public static String defaultToNA(String value) {
+  /**
+   * @description Returns 'N/A' if value is null, otherwise returns the value
+   * @param value String value to check
+   * @return Original value or 'N/A' if null
+   */
+  private static String defaultToNA(String value) {
     return value != null ? value : 'N/A';
   }
 
-  public static String truncate(String input, Integer maxLength) {
+  /**
+   * @description Truncates string to maximum length with ellipsis
+   * @param input String to truncate
+   * @param maxLength Maximum allowed length before truncation
+   * @return Truncated string with '...' or 'N/A' if blank
+   */
+  @TestVisible
+  private static String truncate(String input, Integer maxLength) {
     if (String.isBlank(input)) {
       return 'N/A';
     }
     return input.length() > maxLength ? input.substring(0, maxLength) + '...' : input;
   }
 
-  public static String escapeHtml(String input) {
+  /**
+   * @description Escapes HTML special characters to prevent XSS attacks
+   * @param input String to escape
+   * @return HTML-escaped string or 'N/A' if blank
+   */
+  @TestVisible
+  private static String escapeHtml(String input) {
     if (String.isBlank(input)) {
       return 'N/A';
     }
@@ -426,19 +648,39 @@ public with sharing class AgentErrorMonitorService {
   // DATA MODELS
   // ============================================================================
 
+  /**
+   * @description Data model representing an error record
+   */
   public class ErrorRecord {
+    /** @description Salesforce record ID */
     public String recordId { get; set; }
+    /** @description Error message text */
     public String errorMessage { get; set; }
+    /** @description Timestamp when error occurred */
     public DateTime occurredAt { get; set; }
+    /** @description Operation being performed when error occurred */
     public String operation { get; set; }
+    /** @description Object name where error occurred */
     public String objectName { get; set; }
+    /** @description Status of the record */
     public String status { get; set; }
+    /** @description Type of message */
     public String messageType { get; set; }
+    /** @description Session ID associated with the error */
     public String sessionId { get; set; }
 
+    /**
+     * @description Default constructor for manual instantiation
+     */
     public ErrorRecord() {
+      // Default constructor for manual instantiation - intentionally empty
+      return;
     }
 
+    /**
+     * @description Constructor from sObject record
+     * @param record sObject containing error data
+     */
     public ErrorRecord(sObject record) {
       this.recordId = (String) record.get('Id');
       this.errorMessage = (String) record.get(AI_AGENT_CONTENT_FIELD);
@@ -451,11 +693,20 @@ public with sharing class AgentErrorMonitorService {
     }
   }
 
+  /**
+   * @description Result object containing processing statistics
+   */
   public class ProcessingResult {
+    /** @description Total number of records processed */
     public Integer totalRecords { get; set; }
+    /** @description List of error records found */
     public List<ErrorRecord> errorRecords { get; set; }
+    /** @description Duration of processing in milliseconds */
     public Long durationMilliseconds { get; set; }
 
+    /**
+     * @description Constructor initializing default values
+     */
     public ProcessingResult() {
       this.totalRecords = 0;
       this.errorRecords = new List<ErrorRecord>();
@@ -467,6 +718,11 @@ public with sharing class AgentErrorMonitorService {
   // DATA PROCESSING
   // ============================================================================
 
+  /**
+   * @description Queries error records from the database
+   * @param hoursBack Number of hours to look back for errors
+   * @return List of sObjects containing error records
+   */
   public static List<sObject> queryErrorRecords(Integer hoursBack) {
     validateHoursBack(hoursBack);
     DateTime cutoffTime = DateTime.now().addHours(-hoursBack);
@@ -480,17 +736,25 @@ public with sharing class AgentErrorMonitorService {
     }
   }
 
+  /**
+   * @description Processes error records and adds them to the result
+   * @param records List of sObjects to process
+   * @param result ProcessingResult to update with processed records
+   */
   public static void processRecords(List<sObject> records, ProcessingResult result) {
     for (sObject record : records) {
       result.totalRecords++;
       ErrorRecord errorRec = new ErrorRecord(record);
-        result.errorRecords.add(errorRec);
+      result.errorRecords.add(errorRec);
     }
   }
 
   /**
-   * Send error notification with default duration (0 seconds) and not scheduled
-   * Delegates to overloaded method with full parameters
+   * @description Send error notification with default duration (0 seconds) and not scheduled
+   * @param errors List of error records to include in notification
+   * @param recipientEmail Email address to send to
+   * @param jobId Salesforce job ID
+   * @return True if email sent successfully
    */
   public static Boolean sendErrorNotification(List<ErrorRecord> errors, String recipientEmail, String jobId) {
     JobContext jobContext = new JobContext(jobId, 0, false, null);
@@ -498,7 +762,12 @@ public with sharing class AgentErrorMonitorService {
   }
 
   /**
-   * Send error notification with execution duration and not scheduled
+   * @description Send error notification with execution duration and not scheduled
+   * @param errors List of error records to include in notification
+   * @param recipientEmail Email address to send to
+   * @param jobId Salesforce job ID
+   * @param durationSeconds Execution duration in seconds
+   * @return True if email sent successfully
    */
   public static Boolean sendErrorNotification(List<ErrorRecord> errors, String recipientEmail, String jobId, Long durationSeconds) {
     JobContext jobContext = new JobContext(jobId, durationSeconds, false, null);
@@ -506,7 +775,13 @@ public with sharing class AgentErrorMonitorService {
   }
 
   /**
-   * Send error notification with execution duration and schedule status
+   * @description Send error notification with execution duration and schedule status
+   * @param errors List of error records to include in notification
+   * @param recipientEmail Email address to send to
+   * @param jobId Salesforce job ID
+   * @param durationSeconds Execution duration in seconds
+   * @param isScheduled Whether the job was scheduled or run manually
+   * @return True if email sent successfully
    */
   public static Boolean sendErrorNotification(
     List<ErrorRecord> errors,
@@ -520,7 +795,14 @@ public with sharing class AgentErrorMonitorService {
   }
 
   /**
-   * Send error notification with full context including lookback hours
+   * @description Send error notification with full context including lookback hours
+   * @param errors List of error records to include in notification
+   * @param recipientEmail Email address to send to
+   * @param jobId Salesforce job ID
+   * @param durationSeconds Execution duration in seconds
+   * @param isScheduled Whether the job was scheduled or run manually
+   * @param lookbackHours Number of hours looked back for errors
+   * @return True if email sent successfully
    */
   public static Boolean sendErrorNotification(
     List<ErrorRecord> errors,
@@ -535,7 +817,11 @@ public with sharing class AgentErrorMonitorService {
   }
 
   /**
-   * Send error notification with notification context
+   * @description Send error notification with job context
+   * @param errors List of error records to include in notification
+   * @param recipientEmail Email address to send to
+   * @param jobContext Job execution context
+   * @return True if email sent successfully
    */
   public static Boolean sendErrorNotification(List<ErrorRecord> errors, String recipientEmail, JobContext jobContext) {
     Notifier notifier = new Notifier();
@@ -543,13 +829,18 @@ public with sharing class AgentErrorMonitorService {
   }
 
   /**
-   * Send scheduler error notification when batch job fails to start
+   * @description Send scheduler error notification when batch job fails to start
+   * @param e Exception that occurred
+   * @param recipientEmail Email address to send to
    */
   public static void sendSchedulerErrorNotification(Exception e, String recipientEmail) {
     Notifier notifier = new Notifier();
     notifier.sendSchedulerErrorNotification(e, recipientEmail);
   }
 
+  /**
+   * @description Custom exception class for Agent Error Monitor
+   */
   public class AgentErrorMonitorException extends Exception {
   }
 }

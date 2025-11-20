@@ -42,19 +42,25 @@ private class AgentErrorMonitorSchedulerTest {
   static void testConstructorValidation() {
     Test.startTest();
 
+    Boolean exceptionThrown = false;
     try {
-      AgentErrorMonitorScheduler scheduler = new AgentErrorMonitorScheduler(null);
+      new AgentErrorMonitorScheduler(null);
       Assert.fail('Should throw IllegalArgumentException for null email');
     } catch (IllegalArgumentException e) {
       assertExceptionMessage(e, 'required');
+      exceptionThrown = true;
     }
+    Assert.isTrue(exceptionThrown, 'Exception should have been thrown for null email');
 
+    exceptionThrown = false;
     try {
-      AgentErrorMonitorScheduler scheduler = new AgentErrorMonitorScheduler('');
+      new AgentErrorMonitorScheduler('');
       Assert.fail('Should throw IllegalArgumentException for blank email');
     } catch (IllegalArgumentException e) {
       assertExceptionMessage(e, 'required');
+      exceptionThrown = true;
     }
+    Assert.isTrue(exceptionThrown, 'Exception should have been thrown for blank email');
 
     Test.stopTest();
   }
@@ -68,6 +74,7 @@ private class AgentErrorMonitorSchedulerTest {
     String jobId = AgentErrorMonitorScheduler.scheduleDaily(email, hour);
     Test.stopTest();
 
+    Assert.isNotNull(jobId, 'Job ID should not be null');
     assertCronExpression(jobId, '0 0 9', 'Cron expression should run at 9:00');
   }
 
@@ -80,6 +87,7 @@ private class AgentErrorMonitorSchedulerTest {
     String jobId = AgentErrorMonitorScheduler.scheduleDaily(email);
     Test.stopTest();
 
+    Assert.isNotNull(jobId, 'Job ID should not be null');
     assertCronExpression(jobId, '0 0 8', 'Cron expression should run at 8:00 (default)');
   }
 
@@ -341,12 +349,15 @@ private class AgentErrorMonitorSchedulerTest {
 
     Test.startTest();
 
+    Boolean exceptionThrown = false;
     try {
-      String jobId = AgentErrorMonitorScheduler.schedule(email, null, null, null, batchSize);
+      AgentErrorMonitorScheduler.schedule(email, null, null, null, batchSize);
       Assert.fail('Should throw IllegalArgumentException for invalid schedule type');
     } catch (IllegalArgumentException e) {
       Assert.isTrue(e.getMessage().contains('Invalid scheduleType'), 'Should validate schedule type: ' + e.getMessage());
+      exceptionThrown = true;
     }
+    Assert.isTrue(exceptionThrown, 'Exception should have been thrown for invalid schedule type');
 
     Test.stopTest();
   }
@@ -355,19 +366,25 @@ private class AgentErrorMonitorSchedulerTest {
   static void testConstructorWithBatchSizeValidation() {
     Test.startTest();
 
+    Boolean exceptionThrown = false;
     try {
-      AgentErrorMonitorScheduler scheduler = new AgentErrorMonitorScheduler(null, 100);
+      new AgentErrorMonitorScheduler(null, 100);
       Assert.fail('Should throw IllegalArgumentException for null email');
     } catch (IllegalArgumentException e) {
       Assert.isTrue(e.getMessage().contains('required'), 'Should validate email is required');
+      exceptionThrown = true;
     }
+    Assert.isTrue(exceptionThrown, 'Exception should have been thrown for null email');
 
+    exceptionThrown = false;
     try {
-      AgentErrorMonitorScheduler scheduler = new AgentErrorMonitorScheduler('', 100);
+      new AgentErrorMonitorScheduler('', 100);
       Assert.fail('Should throw IllegalArgumentException for blank email');
     } catch (IllegalArgumentException e) {
       Assert.isTrue(e.getMessage().contains('required'), 'Should validate email is required');
+      exceptionThrown = true;
     }
+    Assert.isTrue(exceptionThrown, 'Exception should have been thrown for blank email');
 
     AgentErrorMonitorScheduler validScheduler = new AgentErrorMonitorScheduler('test@example.com', 150);
     Assert.isNotNull(validScheduler, 'Valid scheduler should be created');
@@ -378,6 +395,7 @@ private class AgentErrorMonitorSchedulerTest {
   @IsTest
   static void testSchedulerExecuteDirect() {
     AgentErrorMonitorScheduler scheduler = new AgentErrorMonitorScheduler('test@example.com', 100);
+    Assert.isNotNull(scheduler, 'Scheduler should be created successfully');
 
     Test.startTest();
     scheduler.execute(null);
@@ -393,26 +411,35 @@ private class AgentErrorMonitorSchedulerTest {
   static void testConstructorInvalidBatchSize() {
     Test.startTest();
 
+    Boolean exceptionThrown = false;
     try {
-      AgentErrorMonitorScheduler scheduler = new AgentErrorMonitorScheduler('test@example.com', 0);
+      new AgentErrorMonitorScheduler('test@example.com', 0);
       Assert.fail('Should throw IllegalArgumentException for batch size too small');
     } catch (IllegalArgumentException e) {
       Assert.isTrue(e.getMessage().contains('Batch size must be between'), 'Should validate batch size range');
+      exceptionThrown = true;
     }
+    Assert.isTrue(exceptionThrown, 'Exception should have been thrown for batch size too small');
 
+    exceptionThrown = false;
     try {
-      AgentErrorMonitorScheduler scheduler = new AgentErrorMonitorScheduler('test@example.com', 3000);
+      new AgentErrorMonitorScheduler('test@example.com', 3000);
       Assert.fail('Should throw IllegalArgumentException for batch size too large');
     } catch (IllegalArgumentException e) {
       Assert.isTrue(e.getMessage().contains('Batch size must be between'), 'Should validate batch size range');
+      exceptionThrown = true;
     }
+    Assert.isTrue(exceptionThrown, 'Exception should have been thrown for batch size too large');
 
+    exceptionThrown = false;
     try {
-      AgentErrorMonitorScheduler scheduler = new AgentErrorMonitorScheduler('test@example.com', null);
+      new AgentErrorMonitorScheduler('test@example.com', null);
       Assert.fail('Should throw IllegalArgumentException for null batch size');
     } catch (IllegalArgumentException e) {
       Assert.isTrue(e.getMessage().contains('Batch size must be between'), 'Should validate batch size range');
+      exceptionThrown = true;
     }
+    Assert.isTrue(exceptionThrown, 'Exception should have been thrown for null batch size');
 
     Test.stopTest();
   }
@@ -425,6 +452,7 @@ private class AgentErrorMonitorSchedulerTest {
     Test.startTest();
 
     AgentErrorMonitorScheduler scheduler = new AgentErrorMonitorScheduler('test@example.com', batchSize, lookbackHours);
+    Assert.isNotNull(scheduler, 'Scheduler should be created with custom lookback hours');
     String jobId = System.schedule('Test Lookback Hours', '0 0 * * * ?', scheduler);
 
     Test.stopTest();
@@ -436,19 +464,25 @@ private class AgentErrorMonitorSchedulerTest {
   static void testConstructorInvalidLookbackHours() {
     Test.startTest();
 
+    Boolean exceptionThrown = false;
     try {
-      AgentErrorMonitorScheduler scheduler = new AgentErrorMonitorScheduler('test@example.com', 100, 0);
+      new AgentErrorMonitorScheduler('test@example.com', 100, 0);
       Assert.fail('Should throw IllegalArgumentException for lookback hours too small');
     } catch (IllegalArgumentException e) {
       Assert.isTrue(e.getMessage().contains('hoursBack must be between'), 'Should validate lookback hours');
+      exceptionThrown = true;
     }
+    Assert.isTrue(exceptionThrown, 'Exception should have been thrown for invalid lookback hours');
 
+    exceptionThrown = false;
     try {
-      AgentErrorMonitorScheduler scheduler = new AgentErrorMonitorScheduler('test@example.com', 100, null);
+      new AgentErrorMonitorScheduler('test@example.com', 100, null);
       Assert.fail('Should throw IllegalArgumentException for null lookback hours');
     } catch (IllegalArgumentException e) {
       Assert.isTrue(e.getMessage().contains('hoursBack must be between'), 'Should validate lookback hours');
+      exceptionThrown = true;
     }
+    Assert.isTrue(exceptionThrown, 'Exception should have been thrown for null lookback hours');
 
     Test.stopTest();
   }

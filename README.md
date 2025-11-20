@@ -604,11 +604,11 @@ See the example email at the top of this README.
 
 This project includes **comprehensive test coverage** (above 90%+):
 
-| Test Class                     | Coverage | Tests  | Status |
-| ------------------------------ | -------- | ------ | ------ |
-| **AgentErrorMonitorBatch**     | 100%     | 9      | ✅     |
-| **AgentErrorMonitorScheduler** | 94%      | 25     | ✅     |
-| **AgentErrorMonitorService**   | 93%      | 30     | ✅     |
+| Test Class                     | Coverage | Tests | Status |
+| ------------------------------ | -------- | ----- | ------ |
+| **AgentErrorMonitorBatch**     | 100%     | 9     | ✅     |
+| **AgentErrorMonitorScheduler** | 94%      | 25    | ✅     |
+| **AgentErrorMonitorService**   | 93%      | 30    | ✅     |
 
 **Latest Test Run:** November 19, 2025  
 **Pass Rate:** 100% (64/64 tests passing)

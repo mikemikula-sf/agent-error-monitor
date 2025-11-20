@@ -66,10 +66,9 @@ cp changelog/v1.02.00.md changelog/v1.03.00.md
 - [ ] Change version number and date in header
 - [ ] Write overview summary
 - [ ] Document all changes in appropriate sections
-- [ ] Include code examples
-- [ ] Write migration guide
-- [ ] List all contributors
-- [ ] Verify all links work
+- [ ] Include relevant technical details (file names, class names, counts)
+- [ ] List key configuration changes
+- [ ] Reference specific methods/properties when relevant
 
 ### Step 3: Update Main CHANGELOG.md
 Add new entry to root `CHANGELOG.md`:
@@ -98,11 +97,9 @@ Update Quick Summary table:
 - [ ] Descriptions are clear and specific
 - [ ] Zero-padded filename used
 - [ ] Main CHANGELOG.md updated
-- [ ] No external links
-- [ ] No technical details (file lists, line counts)
-- [ ] No usage examples
-- [ ] No migration guides
-- [ ] Focused on WHAT changed, not HOW
+- [ ] No external links (internal file references are OK)
+- [ ] Include relevant technical details (file names, class names, method counts)
+- [ ] Focused on WHAT changed and WHY it matters
 
 ---
 
@@ -136,18 +133,30 @@ Follow [Semantic Versioning](https://semver.org/):
 ❌ BAD: "Added JobContext class"
 ✅ GOOD: "Added JobContext class to encapsulate job metadata (SOLID Single Responsibility Principle)"
 
-### Provide Examples
-Always include code examples for:
-- New features
-- Changed APIs
-- Migration steps
-- Configuration changes
+### Include Technical Context
+When documenting changes, include:
+- **File names** - Reference specific classes, configuration files
+- **Counts** - Test method counts, property counts (when relevant to scope)
+- **Class/Method names** - Specific APIs that changed
+- **Configuration details** - Settings, parameters, options added
+
+### Examples
+```markdown
+✅ GOOD: "Added ApexDoc to all 6 Apex classes (public and private methods)"
+✅ GOOD: "Refactored 21 internal helper methods from public to private"
+✅ GOOD: "Added 11 new test methods to AgentErrorMonitorServiceTest (20 → 31)"
+✅ GOOD: "Prettier Configuration (.prettierrc) - 100 character print width"
+❌ BAD: "Improved documentation" (too vague)
+❌ BAD: "Updated some files" (not specific enough)
+```
 
 ### Link to Relevant Code
 When referencing specific changes, include file paths:
 ```markdown
 - Enhanced `AgentErrorMonitorService.cls` with JobContext
 - Updated `AgentErrorMonitorBatch.cls` to pass job metadata
+- Added `.prettierrc` configuration file
+- Modified `package.json` scripts
 ```
 
 ---
@@ -190,12 +199,11 @@ Migration information...
 
 ❌ **Don't use unpadded version numbers** in filenames
 ❌ **Don't forget to update** main CHANGELOG.md
-❌ **Don't use vague descriptions** - be specific
-❌ **Don't add external links** - they break over time
-❌ **Don't add implementation details** - focus on what changed, not how
-❌ **Don't add usage examples** - that's for documentation
-❌ **Don't add migration guides** - deploy instructions are standard
-❌ **Don't add technical statistics** - focus on functional changes
+❌ **Don't use vague descriptions** - be specific with file names and counts
+❌ **Don't add external links** - they break over time (internal file refs are OK)
+❌ **Don't add excessive code samples** - brief examples OK, full implementations belong in docs
+❌ **Don't add deployment procedures** - standard process doesn't need repeating
+❌ **Don't be too brief** - include enough technical detail to understand scope
 
 ---
 
@@ -211,16 +219,26 @@ When creating or updating changelog files:
    - New version file in `changelog/`
    - Root `CHANGELOG.md`
 6. **Verify semantic versioning** is correct
-7. **Keep it concise and focused** - changelogs are historical records
-8. **NO technical implementation details** - no file lists, line counts, code samples
-9. **NO usage examples** - that belongs in documentation/README
-10. **NO migration guides** - deployment process is standard
-11. **NO external links** - they become outdated
-12. **NO future plans** - changelogs document the past, not the future
+7. **Include technical context**:
+   - ✅ File names (classes, config files)
+   - ✅ Counts (test methods, properties, changes)
+   - ✅ Class/method names that changed
+   - ✅ Configuration details (settings, parameters)
+   - ✅ Tool names and versions
+8. **Balance detail with readability**:
+   - Include enough detail to understand scope
+   - Don't overwhelm with every single change
+   - Group related changes logically
+9. **Avoid**:
+   - ❌ External links (internal file refs OK)
+   - ❌ Excessive code samples (brief examples OK)
+   - ❌ Deployment procedures (standard process)
+   - ❌ Future plans (document the past only)
+   - ❌ Vague descriptions without specifics
 
 ---
 
-## Simplified Template
+## Template with Examples
 
 ```markdown
 # Release Notes - vX.Y.Z
@@ -233,22 +251,42 @@ When creating or updating changelog files:
 ## Overview
 
 2-3 sentence summary of what this release accomplishes and why it matters.
+Include key highlights and overall impact.
 
 ---
 
 ## Added
 
-### Feature Name
-- What was added
-- Why it was added
-- Key benefits
+### Feature Category
+
+#### Specific Feature Name
+
+- **What**: Brief description with file names
+- **Details**: 
+  - Configuration files added (`.prettierrc`, `.pmdconfig`)
+  - New classes or methods
+  - Counts when relevant (e.g., "Added 11 test methods")
+- **Benefits**:
+  - Why this matters
+  - Impact on users/developers
+
+### Testing (if applicable)
+
+#### New Test Cases (X Added)
+
+1. **testMethodName** - What it validates
+2. **testMethodName** - What it validates
 
 ---
 
 ## Changed
 
-### What Changed
-- What was modified
+### Category Name
+
+#### Specific Component
+
+- What was modified in `ClassName.cls`
+- Specific changes (e.g., "Reduced MAX_QUERY_RECORDS from 200 to 100")
 - Why it was changed
 - Impact on users
 
@@ -256,24 +294,31 @@ When creating or updating changelog files:
 
 ## Removed
 
-### What Was Removed
-- What was removed
+### Category Name
+
+- What was removed from `FileName`
 - Why it was removed
+- Benefit of removal
 
 ---
 
 ## Fixed
 
-### What Was Fixed
-- What bug was fixed
+### Issue Category
+
+#### Specific Fix
+
+- What bug was fixed in `ClassName.cls`
 - Impact of the fix
+- Related security/priority level if applicable
 
 ---
 
-## Improved
+## Improved (Optional)
 
 ### What Was Improved
-- What was enhanced
+
+- Enhancement details
 - Benefits of the improvement
 ```
 
@@ -282,8 +327,10 @@ When creating or updating changelog files:
 ## Philosophy
 
 Changelogs should be:
-- **Concise** - Focus on what matters to users
-- **Clear** - Anyone can understand what changed
+- **Specific** - Include file names, counts, and technical details
+- **Clear** - Balance technical accuracy with readability
 - **Historical** - Document what happened, not what might happen
-- **User-focused** - Explain impact, not implementation
-- **Timeless** - No links or references that will break
+- **Contextual** - Explain WHAT changed, WHY it matters, and WHERE (which files)
+- **Scoped** - Use counts to show scope (e.g., "21 methods refactored", "6 classes documented")
+- **Timeless** - No external links (internal file references are fine)
+- **Developer-focused** - This is a technical project, include technical details

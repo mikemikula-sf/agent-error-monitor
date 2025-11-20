@@ -1,0 +1,10 @@
+{
+  "engines": {
+    "pmd": {
+      "custom_rulesets": [".pmdconfig"]
+    },
+    "flow": {
+      "disable_engine": true
+    }
+  }
+}

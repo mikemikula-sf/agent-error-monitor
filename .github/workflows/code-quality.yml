@@ -1,0 +1,47 @@
+name: Code Quality Checks
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  code-quality:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Setup Salesforce CLI
+        run: |
+          npm install -g @salesforce/cli
+          sf plugins install @salesforce/plugin-code-analyzer
+
+      - name: Run Prettier Check
+        run: pnpm run prettier:verify
+
+      - name: Run ESLint
+        run: pnpm run lint
+
+      - name: Run Salesforce Code Analyzer
+        run: pnpm run scan
+        continue-on-error: true
+
+      - name: Run Unit Tests
+        run: pnpm run test:unit

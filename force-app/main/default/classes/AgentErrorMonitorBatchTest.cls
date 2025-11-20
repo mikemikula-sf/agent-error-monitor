@@ -62,39 +62,51 @@ private class AgentErrorMonitorBatchTest {
 
   @IsTest
   static void testConstructorValidationInvalidLookback() {
+    Boolean exceptionThrown = false;
     try {
-      AgentErrorMonitorBatch batch = new AgentErrorMonitorBatch('test@example.com', 0);
-      assertExceptionThrown('invalid lookback', 'hoursBack must be between');
+      new AgentErrorMonitorBatch('test@example.com', 0);
+      Assert.fail('Expected IllegalArgumentException for invalid lookback');
     } catch (IllegalArgumentException e) {
       assertExceptionMessage(e, 'hoursBack must be between');
+      exceptionThrown = true;
     }
+    Assert.isTrue(exceptionThrown, 'Exception should have been thrown for invalid lookback');
 
+    exceptionThrown = false;
     try {
-      AgentErrorMonitorBatch batch = new AgentErrorMonitorBatch('test@example.com', null);
-      assertExceptionThrown('null lookback', 'hoursBack must be between');
+      new AgentErrorMonitorBatch('test@example.com', null);
+      Assert.fail('Expected IllegalArgumentException for null lookback');
     } catch (IllegalArgumentException e) {
       assertExceptionMessage(e, 'hoursBack must be between');
+      exceptionThrown = true;
     }
+    Assert.isTrue(exceptionThrown, 'Exception should have been thrown for null lookback');
   }
 
   @IsTest
   static void testConstructorValidationNull() {
+    Boolean exceptionThrown = false;
     try {
-      AgentErrorMonitorBatch batch = new AgentErrorMonitorBatch(null);
-      assertExceptionThrown('null email', 'required');
+      new AgentErrorMonitorBatch(null);
+      Assert.fail('Expected IllegalArgumentException for null email');
     } catch (IllegalArgumentException e) {
       assertExceptionMessage(e, 'required');
+      exceptionThrown = true;
     }
+    Assert.isTrue(exceptionThrown, 'Exception should have been thrown for null email');
   }
 
   @IsTest
   static void testConstructorValidationBlank() {
+    Boolean exceptionThrown = false;
     try {
-      AgentErrorMonitorBatch batch = new AgentErrorMonitorBatch('');
-      assertExceptionThrown('blank email', 'required');
+      new AgentErrorMonitorBatch('');
+      Assert.fail('Expected IllegalArgumentException for blank email');
     } catch (IllegalArgumentException e) {
       assertExceptionMessage(e, 'required');
+      exceptionThrown = true;
     }
+    Assert.isTrue(exceptionThrown, 'Exception should have been thrown for blank email');
   }
 
   @IsTest
@@ -113,18 +125,20 @@ private class AgentErrorMonitorBatchTest {
     AgentErrorMonitorBatch batch = new AgentErrorMonitorBatch('test@example.com');
 
     Test.startTest();
+    Boolean exceptionThrown = false;
     try {
       batch.execute(null, null);
       Assert.fail('Should throw exception for null scope');
     } catch (Exception e) {
       Assert.isNotNull(e, 'Exception should be thrown for null scope');
+      exceptionThrown = true;
     }
     Test.stopTest();
+    Assert.isTrue(exceptionThrown, 'Exception should have been thrown for null scope');
   }
 
   @IsTest
   static void testFinishWithErrorNotification() {
-    AgentErrorMonitorBatch batch = new AgentErrorMonitorBatch('test@example.com');
     Account testAccount = new Account(Name = 'Test Error Account');
     insert testAccount;
 

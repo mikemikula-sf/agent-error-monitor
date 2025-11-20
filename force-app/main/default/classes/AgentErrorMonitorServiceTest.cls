@@ -272,12 +272,15 @@ private class AgentErrorMonitorServiceTest {
   @IsTest
   static void testQueryErrorRecordsExceptionHandling() {
     Test.startTest();
+    Boolean exceptionThrown = false;
     try {
-      List<sObject> records = AgentErrorMonitorService.queryErrorRecords(0);
+      AgentErrorMonitorService.queryErrorRecords(0);
       Assert.fail('Should throw IllegalArgumentException for invalid hoursBack');
     } catch (IllegalArgumentException e) {
       Assert.isTrue(e.getMessage().contains('hoursBack must be between'), 'Should validate hoursBack range');
+      exceptionThrown = true;
     }
+    Assert.isTrue(exceptionThrown, 'Exception should have been thrown for invalid hoursBack');
     Test.stopTest();
   }
 

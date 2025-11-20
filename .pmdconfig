@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="Agent Error Monitor PMD Rules"
+    xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+
+    <description>
+        Custom PMD ruleset for Agent Error Monitor project
+    </description>
+
+    <!-- Import all default Apex rules -->
+    <rule ref="category/apex/bestpractices.xml">
+        <!-- Allow unused variables in test classes for now -->
+        <exclude name="UnusedLocalVariable"/>
+    </rule>
+    
+    <rule ref="category/apex/codestyle.xml"/>
+    
+    <rule ref="category/apex/design.xml">
+        <!-- Relax some design rules -->
+        <exclude name="ExcessiveParameterList"/>
+        <exclude name="ExcessivePublicCount"/>
+        <exclude name="CyclomaticComplexity"/>
+        <exclude name="CognitiveComplexity"/>
+    </rule>
+    
+    <rule ref="category/apex/errorprone.xml">
+        <!-- Allow hardcoded IDs in test classes -->
+        <exclude name="AvoidHardcodingId"/>
+        <!-- Allow empty catch blocks for now -->
+        <exclude name="EmptyStatementBlock"/>
+    </rule>
+    
+    <rule ref="category/apex/performance.xml">
+        <!-- Allow System.debug for now -->
+        <exclude name="AvoidDebugStatements"/>
+    </rule>
+    
+    <rule ref="category/apex/security.xml"/>
+    
+    <rule ref="category/apex/documentation.xml">
+        <!-- Relax documentation requirements -->
+        <exclude name="ApexDoc"/>
+    </rule>
+
+</ruleset>
