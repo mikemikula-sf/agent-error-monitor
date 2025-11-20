@@ -1,4 +1,4 @@
-# Agent Error Monitor (v1.2.0)
+# Agent Error Monitor (v1.3.0)
 
 **Automatically detect and get notified when your Salesforce AI Agents encounter errors.**
 
@@ -1238,7 +1238,4 @@ If this project helps you monitor your AI Agents, please consider:
 
 ---
 
-**Last Updated**: November 19, 2025  
-**Version**: 1.2.0  
-**API Version**: 64.0  
-**Test Coverage**: 90%+ (62 tests passing)
+**Last Updated**: November 19, 2025 
