@@ -22,10 +22,6 @@ private class AgentErrorMonitorBatchTest {
     ];
   }
 
-  private static void assertExceptionThrown(String methodCall, String expectedMessage) {
-    Assert.fail('Should throw IllegalArgumentException for ' + methodCall);
-  }
-
   private static void assertExceptionMessage(Exception e, String expectedSubstring) {
     Assert.isTrue(e.getMessage().contains(expectedSubstring), 'Exception message should contain: ' + expectedSubstring);
   }

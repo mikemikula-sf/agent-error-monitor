@@ -47,16 +47,11 @@ public with sharing class AgentErrorMonitorScheduler implements Schedulable {
    */
   public interface IScheduleStrategy {
     /**
-     * @description Creates a schedule configuration
+     * @description Creates a schedule configuration with validation
      * @param param Schedule-specific parameter (hour for daily, interval for interval)
      * @return ScheduleConfig containing cron expression and job details
      */
     ScheduleConfig createConfig(Integer param);
-    /**
-     * @description Validates the schedule parameter
-     * @param param Schedule-specific parameter to validate
-     */
-    void validate(Integer param);
   }
 
   /**
@@ -64,25 +59,18 @@ public with sharing class AgentErrorMonitorScheduler implements Schedulable {
    */
   public class DailyScheduleStrategy implements IScheduleStrategy {
     /**
-     * @description Creates daily schedule configuration
+     * @description Creates daily schedule configuration with validation
      * @param dailyHour Hour of day (0-23) to run the job
      * @return ScheduleConfig for daily execution
      */
     public ScheduleConfig createConfig(Integer dailyHour) {
+      if (dailyHour == null || dailyHour < 0 || dailyHour > 23) {
+        throw new IllegalArgumentException('Hour must be between 0 and 23');
+      }
       String cronExp = '0 0 ' + dailyHour + ' * * ?';
       String jobName = 'Agent Error Monitor - Daily ' + dailyHour + ':00';
       Integer lookbackHours = 24;
       return new ScheduleConfig(cronExp, jobName, lookbackHours);
-    }
-
-    /**
-     * @description Validates daily hour parameter
-     * @param dailyHour Hour to validate (must be 0-23)
-     */
-    public void validate(Integer dailyHour) {
-      if (dailyHour == null || dailyHour < 0 || dailyHour > 23) {
-        throw new IllegalArgumentException('Hour must be between 0 and 23');
-      }
     }
   }
 
@@ -101,15 +89,6 @@ public with sharing class AgentErrorMonitorScheduler implements Schedulable {
       Integer lookbackHours = 1;
       return new ScheduleConfig(cronExp, jobName, lookbackHours);
     }
-
-    /**
-     * @description Validates hourly schedule parameter (no validation needed)
-     * @param param Not used for hourly schedules
-     */
-    public void validate(Integer param) {
-      // No validation needed for hourly schedule - intentionally empty
-      return;
-    }
   }
 
   /**
@@ -117,25 +96,18 @@ public with sharing class AgentErrorMonitorScheduler implements Schedulable {
    */
   public class IntervalScheduleStrategy implements IScheduleStrategy {
     /**
-     * @description Creates interval schedule configuration
+     * @description Creates interval schedule configuration with validation
      * @param intervalHours Number of hours between executions (1-12)
      * @return ScheduleConfig for interval execution
      */
     public ScheduleConfig createConfig(Integer intervalHours) {
+      if (intervalHours == null || intervalHours < 1 || intervalHours > 12) {
+        throw new IllegalArgumentException('Interval must be between 1 and 12 hours');
+      }
       String cronExp = '0 0 0/' + intervalHours + ' * * ?';
       String jobName = 'Agent Error Monitor - Every ' + intervalHours + ' Hours';
       Integer lookbackHours = intervalHours;
       return new ScheduleConfig(cronExp, jobName, lookbackHours);
-    }
-
-    /**
-     * @description Validates interval hours parameter
-     * @param intervalHours Interval to validate (must be 1-12)
-     */
-    public void validate(Integer intervalHours) {
-      if (intervalHours == null || intervalHours < 1 || intervalHours > 12) {
-        throw new IllegalArgumentException('Interval must be between 1 and 12 hours');
-      }
     }
   }
 
@@ -286,7 +258,6 @@ public with sharing class AgentErrorMonitorScheduler implements Schedulable {
    */
   private static ScheduleConfig buildScheduleConfig(ScheduleType scheduleType, Integer param) {
     IScheduleStrategy strategy = getStrategy(scheduleType);
-    strategy.validate(param);
     return strategy.createConfig(param);
   }
 

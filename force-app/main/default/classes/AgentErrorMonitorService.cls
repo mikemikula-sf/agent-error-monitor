@@ -673,8 +673,6 @@ public with sharing class AgentErrorMonitorService {
      * @description Default constructor for manual instantiation
      */
     public ErrorRecord() {
-      // Default constructor for manual instantiation - intentionally empty
-      return;
     }
 
     /**

@@ -1,4 +1,4 @@
-# Agent Error Monitor (v1.3.0)
+# Agent Error Monitor (v1.3.1)
 
 **Automatically detect and get notified when your Salesforce AI Agents encounter errors.**
 
