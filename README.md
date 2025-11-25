@@ -55,9 +55,6 @@ String recipientEmail = 'your-email@example.com';  // ← Change to YOUR email
 AgentErrorMonitorScheduler.ScheduleType scheduleType =
     AgentErrorMonitorScheduler.ScheduleType.DAILY;  // DAILY, HOURLY, or INTERVAL
 
-// Line 13: How many hours back to check (default: 24)
-Integer lookbackHours = 24;  // Match this to your schedule frequency
-
 // Line 19: For DAILY - what time? (0-23)
 Integer dailyHour = 8;  // 8 = 8:00 AM
 
@@ -67,9 +64,9 @@ Integer intervalHours = 4;  // Every 4 hours
 
 **Common Schedules:**
 
-- **Daily at 8 AM** (default) - No changes needed (`lookbackHours = 24`)
-- **Every hour** - Change line 16 to `ScheduleType.HOURLY` and set `lookbackHours = 1`
-- **Every 4 hours** - Change line 16 to `ScheduleType.INTERVAL` and set `lookbackHours = 4`
+- **Daily at 8 AM** (default) - No changes needed (checks last 24 hours)
+- **Every hour** - Change line 16 to `ScheduleType.HOURLY` (checks last 1 hour)
+- **Every 4 hours** - Change line 16 to `ScheduleType.INTERVAL` and set `intervalHours = 4` (checks last 4 hours)
 
 ### 3. Schedule the Job
 
@@ -281,9 +278,10 @@ All configuration is done in the scheduling scripts (`scripts/apex/schedule-batc
 
 - **Email Recipient**: Change `recipientEmail` variable
 - **Batch Size**: Default 200 (adjust for high volume)
-- **Lookback Hours**: Configurable time window to check for errors (default: 24 hours)
-  - Should match your schedule frequency to avoid gaps or duplicates
-  - Example: Daily schedule → 24 hours, Hourly schedule → 1 hour
+- **Lookback Hours**: Automatically managed based on schedule type
+  - Daily schedule → checks last 24 hours
+  - Hourly schedule → checks last 1 hour
+  - Interval schedule → checks last N hours (matches interval)
 - **Schedule Type**: DAILY, HOURLY, or INTERVAL
 
 ## 📖 Usage
@@ -314,21 +312,14 @@ All configuration is done in the scheduling scripts (`scripts/apex/schedule-batc
 Open `scripts/apex/run-batch-now.apex` and update the configuration:
 
 ```apex
-// BEFORE (lines 7-8):
+// BEFORE (line 7):
 String recipientEmail = 'your-email@example.com'; // TODO: Update this email address
-Integer lookbackHours = 24; // How many hours back to check for errors
 
 // AFTER:
 String recipientEmail = 'admin@yourcompany.com'; // ← Your actual email
-Integer lookbackHours = 24; // ← Adjust if needed (default: 24 hours)
 ```
 
-**Lookback Hours Examples:**
-
-- `24` - Check last 24 hours (default)
-- `48` - Check last 2 days
-- `72` - Check last 3 days
-- `1` - Check last hour only
+**Note:** The lookback period is fixed at 24 hours for ad-hoc runs. For automated scheduling with different lookback periods, use Option 2 instead.
 
 #### Step 2: Run the Script
 
@@ -368,9 +359,9 @@ Open `scripts/apex/schedule-batch.apex` and configure:
 
 String recipientEmail = 'admin@yourcompany.com'; // ← YOUR EMAIL HERE
 Integer batchSize = 200; // Leave as-is unless you have high volume
-Integer lookbackHours = 24; // ← How many hours back to check (should match schedule frequency)
 
 // Choose ONE schedule type:
+// Lookback hours are automatically set based on schedule type
 AgentErrorMonitorScheduler.ScheduleType scheduleType =
     AgentErrorMonitorScheduler.ScheduleType.DAILY;  // ← DAILY, HOURLY, or INTERVAL
 
@@ -381,21 +372,20 @@ Integer dailyHour = 8;  // ← 8 = 8:00 AM (use 0-23)
 Integer intervalHours = 4;  // ← Every 4 hours (use 1-12)
 ```
 
-**Lookback Hours Best Practices:**
+**Automatic Lookback Management:**
 
-- **Daily schedule** → `lookbackHours = 24` (matches 24-hour frequency)
-- **Hourly schedule** → `lookbackHours = 1` (matches 1-hour frequency)
-- **Every 4 hours** → `lookbackHours = 4` (matches 4-hour frequency)
-- **Custom needs** → Adjust as needed (e.g., 48 hours for twice-daily checks)
+- **Daily schedule** → Automatically checks last 24 hours
+- **Hourly schedule** → Automatically checks last 1 hour
+- **Every 4 hours** → Automatically checks last 4 hours
 
 **Common Schedule Examples:**
 
-| Schedule Type     | Configuration                                    | When It Runs                       |
-| ----------------- | ------------------------------------------------ | ---------------------------------- |
-| **Daily at 8 AM** | `scheduleType = DAILY`<br>`dailyHour = 8`        | Every day at 8:00 AM               |
-| **Daily at 6 PM** | `scheduleType = DAILY`<br>`dailyHour = 18`       | Every day at 6:00 PM               |
-| **Every Hour**    | `scheduleType = HOURLY`                          | Every hour on the hour             |
-| **Every 4 Hours** | `scheduleType = INTERVAL`<br>`intervalHours = 4` | Every 4 hours starting at midnight |
+| Schedule Type     | Configuration                                    | When It Runs                                             |
+| ----------------- | ------------------------------------------------ | -------------------------------------------------------- |
+| **Daily at 8 AM** | `scheduleType = DAILY`<br>`dailyHour = 8`        | Every day at 8:00 AM (checks last 24 hours)              |
+| **Daily at 6 PM** | `scheduleType = DAILY`<br>`dailyHour = 18`       | Every day at 6:00 PM (checks last 24 hours)              |
+| **Every Hour**    | `scheduleType = HOURLY`                          | Every hour on the hour (checks last 1 hour)              |
+| **Every 4 Hours** | `scheduleType = INTERVAL`<br>`intervalHours = 4` | Every 4 hours starting at midnight (checks last 4 hours) |
 
 #### Step 2: Run the Schedule Script
 
@@ -826,13 +816,11 @@ sf project deploy start --metadata ApexClass:AgentErrorMonitorService
 
 ### Q: How far back does it check for errors?
 
-**A:** By default, it looks back 24 hours, but this is **configurable** via the `lookbackHours` parameter.
+**A:** The lookback period is **automatically managed** based on your schedule type:
 
-**Best Practice:** Match the lookback period to your schedule frequency:
-
-- Daily schedule → 24 hours
-- Hourly schedule → 1 hour
-- Every 4 hours → 4 hours
+- Daily schedule → checks last 24 hours
+- Hourly schedule → checks last 1 hour
+- Every 4 hours → checks last 4 hours
 
 This ensures you catch all recent errors while avoiding duplicate notifications.
 
@@ -1028,8 +1016,10 @@ if (result.errorCount == 0) {
 1. **Errors Outside Lookback Window**
 
    ```
-   ✓ Fix: Errors are older than 24 hours
-          Run with custom lookback:
+   ✓ Issue: Errors are older than the automatic lookback period
+            (24 hours for daily, 1 hour for hourly, etc.)
+
+   ✓ Fix: Query manually with custom lookback:
 
           // In Anonymous Apex - query last 72 hours
           List<sObject> records = AgentErrorMonitorService.queryErrorRecords(72);

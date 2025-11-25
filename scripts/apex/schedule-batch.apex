@@ -13,10 +13,10 @@ String recipientEmail = 'your-email@example.com'; // TODO: Update this email add
 Integer batchSize = 200; // Number of records to process per batch
 
 // Schedule Type: DAILY, HOURLY, or INTERVAL
-// Note: Lookback hours are automatically set to match your schedule:
-//   - DAILY: 24 hours
-//   - HOURLY: 1 hour
-//   - INTERVAL: matches your interval (e.g., every 4 hours = 4-hour lookback)
+// Lookback hours are automatically managed based on schedule type:
+//   - DAILY: checks last 24 hours
+//   - HOURLY: checks last 1 hour
+//   - INTERVAL: checks last N hours (matches your interval)
 AgentErrorMonitorScheduler.ScheduleType scheduleType = AgentErrorMonitorScheduler.ScheduleType.DAILY;
 
 // For DAILY: Hour of day to run (0-23)
